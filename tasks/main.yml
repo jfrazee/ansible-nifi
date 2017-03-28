@@ -1,2 +1,133 @@
 ---
 # tasks file for ansible-nifi
+- name: install required YUM packages
+  yum: name={{ item }} state=present
+  with_items:
+    - unzip
+    - java-1.8.0-openjdk-headless
+  when: ansible_os_family == "RedHat"
+
+- name: set nofile ulimit to {{ pam_limits_nofile }}
+  pam_limits:
+    domain: '*'
+    limit_type: "{{ item }}"
+    limit_item: nofile
+    value: "{{ pam_limits_nofile }}"
+    use_max: yes
+    backup: yes
+  with_items:
+    - hard
+    - soft
+
+- name: set nproc ulimit to {{ pam_limits_nproc }}
+  pam_limits:
+    domain: '*'
+    limit_type: "{{ item }}"
+    limit_item: nproc
+    value: "{{ pam_limits_nproc }}"
+    use_max: yes
+    backup: yes
+  with_items:
+    - hard
+    - soft
+
+- name: set net.ipv4.ip_local_port_range={{ net_ipv4_ip_local_port_range }}
+  sysctl:
+    name: net.ipv4.ip_local_port_range
+    value: "{{ net_ipv4_ip_local_port_range }}"
+    sysctl_set: yes
+    state: present
+    reload: yes
+
+- name: set vm.swapiness={{ vm_swapiness }}
+  lineinfile:
+    dest: /etc/sysctl.conf
+    regexp: '^vm.swapiness='
+    line: "vm.swapiness={{ vm_swapiness }}"
+    backup: yes
+
+- name: create nifi system group
+  group:
+    name: "{{ nifi_run_as }}"
+    state: present
+  when: nifi_run_as != "root"
+
+- name: create nifi system account
+  user:
+    name: "{{ nifi_run_as }}"
+    groups: "{{ nifi_run_as }}"
+    append: yes
+    system: yes
+    state: present
+  when: nifi_run_as != "root"
+
+- name: download and unarchive nifi-{{ nifi_version }}
+  unarchive:
+    src: /tmp/nifi-{{ nifi_version }}-bin.zip
+    dest: "{{ nifi_install_root }}"
+    creates: "{{ nifi_install_dir }}"
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    remote_src: yes
+
+- name: download and unarchive nifi-toolkit-{{ nifi_version }}
+  unarchive:
+    src: "{{ nifi_toolkit_package_url }}"
+    dest: "{{ nifi_install_root }}"
+    creates: "{{ nifi_toolkit_install_dir }}"
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    remote_src: yes
+
+- name: set run.as={{ nifi_run_as }} in bootstrap.conf
+  lineinfile:
+    dest: "{{ nifi_install_dir }}/conf/bootstrap.conf"
+    regexp: '^run\.as='
+    line: "run.as={{ nifi_run_as }}"
+    owner: "{{ nifi_run_as }}"
+    backup: yes
+  when: nifi_run_as != "root"
+  notify: restart nifi
+  tags: [conf]
+
+- name: set -Xms={{ nifi_java_min_memory }} in bootstrap.conf
+  lineinfile:
+    dest: "{{ nifi_install_dir }}/conf/bootstrap.conf"
+    regexp: '^java\.arg\.2='
+    line: "java.arg.2=-Xms{{ nifi_java_min_memory }}"
+    owner: "{{ nifi_run_as }}"
+    backup: yes
+  notify: restart nifi
+  tags: [conf]
+
+- name: set -Xmx={{ nifi_java_max_memory }} in bootstrap.conf
+  lineinfile:
+    dest: "{{ nifi_install_dir }}/conf/bootstrap.conf"
+    regexp: '^java\.arg\.3='
+    line: "java.arg.3=-Xmx{{ nifi_java_max_memory }}"
+    owner: "{{ nifi_run_as }}"
+    backup: yes
+  notify: restart nifi
+  tags: [conf]
+
+- name: use GZIP compression for logs in logback.xml
+  replace:
+    dest: "{{ nifi_install_dir }}/conf/logback.xml"
+    regexp: '^(.*)\.log<\/fileNamePattern>$'
+    replace: '\1.log.gz</fileNamePattern>'
+    owner: "{{ nifi_run_as }}"
+    backup: yes
+  tags: [conf]
+
+- name: install nifi service
+  command: sh ./bin/nifi.sh install
+  args:
+    chdir: "{{ nifi_install_root }}/nifi-{{ nifi_version }}"
+    creates: /etc/init.d/nifi
+  when: nifi_install_service
+
+- name: enable nifi service
+  service:
+    name: nifi
+    state: started
+    enabled: yes

@@ -1,2 +1,17 @@
 ---
 # defaults file for ansible-nifi
+pam_limits_nofile: 50000
+pam_limits_nproc: 10000
+net_ipv4_ip_local_port_range: 10000 65000
+vm_swapiness: 0
+nifi_version: 1.1.2
+nifi_release_archive: https://archive.apache.org/dist/nifi
+nifi_package_url: "{{ nifi_release_archive }}/{{ nifi_version }}/nifi-{{ nifi_version }}-bin.zip"
+nifi_toolkit_package_url: "{{ nifi_release_archive }}/{{ nifi_version }}/nifi-toolkit-{{ nifi_version }}-bin.zip"
+nifi_install_root: /usr/local
+nifi_install_dir: "{{ nifi_install_root }}/nifi-{{ nifi_version }}"
+nifi_toolkit_install_dir: "{{ nifi_install_root }}/nifi-toolkit-{{ nifi_version }}"
+nifi_run_as: nifi
+nifi_java_min_memory: 512m
+nifi_java_max_memory: 512m
+nifi_install_service: True

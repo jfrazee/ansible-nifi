@@ -1,2 +1,7 @@
 ---
 # handlers file for ansible-nifi
+- name: start nifi
+  service: name=nifi state=started
+
+- name: restart nifi
+  service: name=nifi state=restarted
