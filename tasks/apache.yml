@@ -1,0 +1,28 @@
+---
+# tasks file for ansible-nifi with Apache NiFi packages
+- name: create {{ nifi_install_dir | dirname }}
+  file: path={{ nifi_install_dir | dirname }} state=directory
+  when: not (hortonworks | bool)
+  tags: [install,apache]
+
+- name: download and unarchive nifi-{{ nifi_version }}
+  unarchive:
+    src: "{{ nifi_package_url }}"
+    dest: "{{ nifi_install_dir | dirname }}"
+    creates: "{{ nifi_install_dir }}"
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    remote_src: yes
+  when: not (hortonworks | bool)
+  tags: [install,apache]
+
+- name: download and unarchive nifi-toolkit-{{ nifi_version }}
+  unarchive:
+    src: "{{ nifi_toolkit_package_url }}"
+    dest: "{{ nifi_toolkit_install_dir | dirname }}"
+    creates: "{{ nifi_toolkit_install_dir }}"
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    remote_src: yes
+  when: not (hortonworks | bool)
+  tags: [install,apache]

@@ -1,0 +1,12 @@
+[Unit]
+Description=Apache NiFi
+After=network.target
+
+[Service]
+Type=forking
+User={{ nifi_run_as }}
+Group={{ nifi_run_as }}
+ExecStart={{ nifi_install_dir }}/bin/nifi.sh start
+ExecStop={{ nifi_install_dir }}/bin/nifi.sh stop
+Restart=on-failure
+RestartSec=60s

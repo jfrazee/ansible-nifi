@@ -15,3 +15,4 @@ nifi_run_as: nifi
 nifi_java_min_memory: 512m
 nifi_java_max_memory: 512m
 nifi_install_service: True
+hortonworks: False
