@@ -14,10 +14,6 @@ Vagrant.configure("2") do |config|
   # boxes at https://atlas.hashicorp.com/search.
   config.vm.box = "centos/7"
 
-  # Automatically insert a keypair to use for SSH, replacing the default
-  # insecure key inside the machine if detected.
-  config.ssh.insert_key = false
-
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs
   # `vagrant box outdated`. This is not recommended.
@@ -26,7 +22,12 @@ Vagrant.configure("2") do |config|
   # Create a forwarded port mapping which allows access to a specific port
   # within the machine from a port on the host machine. In the example below,
   # accessing "localhost:8080" will access port 80 on the guest machine.
-  config.vm.network "forwarded_port", guest: 8080, host: 8080
+  # config.vm.network "forwarded_port", guest: 80, host: 8080
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine and only allow access
+  # via 127.0.0.1 to disable public access
+  # config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
 
   # Create a private network, which allows host-only access to the machine
   # using a specific IP.
@@ -48,8 +49,9 @@ Vagrant.configure("2") do |config|
   # Example for VirtualBox:
 
   config.vm.provider "virtualbox" do |v|
-    v.gui = true
+    v.gui = false
     v.memory = 1024
+    v.cpus = 2
   end
 
   config.vm.provider "vmware_fusion" do |v|
@@ -68,10 +70,26 @@ Vagrant.configure("2") do |config|
   #   push.app = "YOUR_ATLAS_USERNAME/YOUR_APPLICATION_NAME"
   # end
 
-  # Enable provisioning with Ansible.
-  config.vm.provision "ansible" do |ansible|
-    ansible.playbook = "tests/test.yml"
-    ansible.sudo = true
-    ansible.raw_arguments = ["-e", "role_name=ansible-nifi"]
+  (0...(num_hosts = [(ENV['NUM_HOSTS'] || 1).to_i, 1].max)).each do |i|
+    config.vm.define "host#{i}", primary: (i == 0) do |host|
+      # Create a private network, which allows host-only access to the machine
+      # using a specific IP.
+      # host.vm.network "private_network", ip: "10.0.1.#{10 + i}"
+      host.vm.network "private_network", type: "dhcp"
+
+      # Enable provisioning with Ansible.
+      host.vm.provision "ansible" do |ansible|
+        ansible.sudo = true
+        ansible.limit = "all"
+        ansible.playbook = "tests/test.yml"
+        ansible.raw_arguments = [
+          "-e", "role_name=ansible-nifi",
+          "-e", "nifi_remote_input_host=",
+          "-e", "nifi_web_http_host=",
+          "-e", "nifi_cluster_is_node=#{num_hosts > 1}",
+          "-e", "nifi_zk_use_embedded=#{num_hosts > 1}"
+        ]
+      end if i == num_hosts - 1
+    end
   end
 end

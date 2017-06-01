@@ -1,6 +1,10 @@
 ---
 # tasks file for ansible-nifi
-- name: install required YUM packages
+- name: log hostvars to /root/ansible-hostvars.json
+  copy: content={{ hostvars | to_nice_json }} dest=/root/ansible-hostvars.json
+  tags: [setup]
+
+- name: install required yum packages
   yum: name={{ item }} state=present
   with_items:
     - unzip
@@ -47,7 +51,15 @@
   lineinfile:
     dest: /etc/sysctl.conf
     regexp: '^vm.swapiness='
-    line: "vm.swapiness={{ vm_swapiness }}"
+    line: vm.swapiness={{ vm_swapiness }}
+    backup: yes
+  tags: [setup]
+
+- name: create /etc/hosts from host inventory
+  template:
+    src: templates/hosts.j2
+    dest: /etc/hosts
+    mode: 0644
     backup: yes
   tags: [setup]
 
@@ -69,19 +81,20 @@
   tags: [setup]
 
 - include: apache.yml
-  when: not (hortonworks | bool)
+  when: not hortonworks|bool
   tags: [install,apache]
 
 - include: hortonworks.yml
-  when: hortonworks | bool
+  when: hortonworks|bool
   tags: [install,hortonworks]
 
 - name: set run.as={{ nifi_run_as }} in bootstrap.conf
   lineinfile:
     dest: "{{ nifi_install_dir }}/conf/bootstrap.conf"
-    regexp: '^run\.as='
-    line: "run.as={{ nifi_run_as }}"
+    regexp: '^run\.as=.*'
+    line: run.as={{ nifi_run_as }}
     owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
     backup: yes
   when: nifi_run_as != "root"
   notify: restart nifi
@@ -90,9 +103,10 @@
 - name: set -Xms={{ nifi_java_min_memory }} in bootstrap.conf
   lineinfile:
     dest: "{{ nifi_install_dir }}/conf/bootstrap.conf"
-    regexp: '^java\.arg\.2='
-    line: "java.arg.2=-Xms{{ nifi_java_min_memory }}"
+    regexp: '^java\.arg\.2=.*'
+    line: java.arg.2=-Xms{{ nifi_java_min_memory }}
     owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
     backup: yes
   notify: restart nifi
   tags: [conf]
@@ -100,21 +114,162 @@
 - name: set -Xmx={{ nifi_java_max_memory }} in bootstrap.conf
   lineinfile:
     dest: "{{ nifi_install_dir }}/conf/bootstrap.conf"
-    regexp: '^java\.arg\.3='
-    line: "java.arg.3=-Xmx{{ nifi_java_max_memory }}"
+    regexp: '^java\.arg\.3=.*'
+    line: java.arg.3=-Xmx{{ nifi_java_max_memory }}
     owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
     backup: yes
   notify: restart nifi
   tags: [conf]
 
-- name: use GZIP compression for logs in logback.xml
+- name: use gzip compression for logs in logback.xml
   replace:
     dest: "{{ nifi_install_dir }}/conf/logback.xml"
     regexp: '^(.*)\.log<\/fileNamePattern>$'
     replace: '\1.log.gz</fileNamePattern>'
     owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
     backup: yes
   tags: [conf]
+
+- name: set site-to-site hostname to {{ inventory_hostname }} in nifi.properties
+  lineinfile:
+    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
+    regexp: '^nifi\.remote\.input\.host=.*'
+    line: nifi.remote.input.host={{ nifi_remote_input_host }}
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    backup: yes
+  tags: [conf]
+
+- name: set site-to-site port to {{ nifi_remote_input_socket_port }} in nifi.properties
+  lineinfile:
+    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
+    regexp: '^nifi\.remote\.input\.socket\.port=.*'
+    line: nifi.remote.input.socket.port={{ nifi_remote_input_socket_port }}
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    backup: yes
+  tags: [conf]
+
+- name: set web http hostname to {{ inventory_hostname }} in nifi.properties
+  lineinfile:
+    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
+    regexp: '^nifi\.web\.http\.host=.*'
+    line: nifi.web.http.host={{ nifi_web_http_host }}
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    backup: yes
+  tags: [conf]
+
+- name: set web http port to {{ nifi_web_http_port }} in nifi.properties
+  lineinfile:
+    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
+    regexp: '^nifi\.web\.http\.port=.*'
+    line: nifi.web.http.port={{ nifi_web_http_port }}
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    backup: yes
+  tags: [conf]
+
+- name: set cluster is node to {{ nifi_cluster_is_node | lower }} in nifi.properties
+  lineinfile:
+    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
+    regexp: '^nifi\.cluster\.is\.node=.*'
+    line: nifi.cluster.is.node={{ nifi_cluster_is_node | lower }}
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    backup: yes
+  tags: [conf,cluster]
+
+- name: set cluster node address to {{ inventory_hostname }} in nifi.properties
+  lineinfile:
+    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
+    regexp: '^nifi\.cluster\.node\.address=.*'
+    line: nifi.cluster.node.address={{ inventory_hostname }}
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    backup: yes
+  tags: [conf,cluster]
+
+- name: set cluster node protocol port to {{ nifi_cluster_node_protocol_port }} in nifi.properties
+  lineinfile:
+    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
+    regexp: '^nifi\.cluster\.node\.protocol\.port=.*'
+    line: nifi.cluster.node.protocol.port={{ nifi_cluster_node_protocol_port }}
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    backup: yes
+  tags: [conf,cluster]
+
+- name: set enable embedded zookeeper to {{ nifi_zk_use_embedded | lower }} in nifi.properties
+  lineinfile:
+    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
+    regexp: '^nifi\.state\.management\.embedded\.zookeeper\.start=.*'
+    line: nifi.state.management.embedded.zookeeper.start={{ nifi_zk_use_embedded | lower }}
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    backup: yes
+  tags: [conf,cluster,zookeeper]
+
+- name: set zookeeper connect string to {{ nifi_zk_connect_string }} in nifi.properties
+  lineinfile:
+    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
+    regexp: '^nifi\.zookeeper\.connect\.string=.*'
+    line: nifi.zookeeper.connect.string={{ nifi_zk_connect_string }}
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    backup: yes
+  tags: [conf,cluster,zookeeper]
+
+- name: add hosts to zookeeper.properties
+  lineinfile:
+    dest: "{{ nifi_install_dir }}/conf/zookeeper.properties"
+    regexp: '^server\.{{ item.0 + 1 }}=.*'
+    line: "server.{{ item.0 + 1 }}={{ item.1 }}:{{ nifi_zk_port_range }}"
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    backup: yes
+  with_indexed_items: "{{ ansible_play_hosts | sort }}"
+  when: nifi_cluster_is_node|bool and nifi_zk_use_embedded|bool
+  tags: [conf,cluster,zookeeper]
+
+- name: create "{{ nifi_install_dir }}/state/zookeeper" directory
+  file:
+    path: "{{ nifi_install_dir }}/state/zookeeper"
+    state: directory
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    mode: 0755
+  when: nifi_cluster_is_node|bool and nifi_zk_use_embedded|bool
+  tags: [conf,cluster,zookeeper]
+
+- name: set facts for zookeeper myid files
+  set_fact:
+    nifi_cluster_zk_ids: "{{ { item.1: item.0 + 1 } | combine(nifi_cluster_zk_ids|default({})) }}"
+  with_indexed_items: "{{ ansible_play_hosts | sort }}"
+  when: nifi_cluster_is_node|bool and nifi_zk_use_embedded|bool
+  tags: [conf,cluster,zookeeper]
+
+- name: set zookeeper id in zookeeper myid file
+  copy:
+    content: "{{ nifi_cluster_zk_ids[inventory_hostname] }}"
+    dest: "{{ nifi_install_dir }}/state/zookeeper/myid"
+    mode: 0644
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+  when: nifi_cluster_is_node|bool and nifi_zk_use_embedded|bool
+  tags: [conf,cluster,zookeeper]
+
+- name: set zookeeper connect string to {{ nifi_zk_connect_string }} in state-management.xml
+  replace:
+    dest: "{{ nifi_install_dir }}/conf/state-management.xml"
+    regexp: '^(\s*)<property name="Connect String">[^<]*<\/property>\s*'
+    replace: '\1<property name="Connect String">{{ nifi_zk_connect_string }}</property>'
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    backup: yes
+  tags: [conf,cluster,zookeeper]
 
 - name: install systemd nifi.service
   template:
@@ -122,13 +277,13 @@
     dest: /etc/systemd/system/nifi.service
     mode: 0644
     backup: yes
-  when: nifi_install_service
-  tags: [conf]
+  when: nifi_install_service|bool
+  tags: [conf,systemd]
 
 - name: enable nifi.service
   service:
     name: nifi
     state: started
     enabled: yes
-  when: nifi_install_service
-  tags: [conf]
+  when: nifi_install_service|bool
+  tags: [conf,systemd]

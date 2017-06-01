@@ -2,7 +2,7 @@
   # tasks file for ansible-nifi with Hortonworks DataFlow (HDF) packages
 - name: use Hortonworks DataFlow (HDF) packages
   include_vars: vars/hortonworks/main.yml
-  when: hortonworks | bool
+  when: hortonworks|bool
   tags: [install,hortonworks]
 
 - name: download HDF YUM .repo file to /etc/yum.repos.d
@@ -11,10 +11,10 @@
     dest: /etc/yum.repos.d
     mode: 0644
     checksum: sha256:{{ hdf_yum_repo_file_checksum }}
-  when: ansible_os_family == "RedHat" and (hortonworks | bool)
+  when: ansible_os_family == "RedHat" and hortonworks|bool
   tags: [install,hortonworks]
 
 - name: install HDF packages via YUM
   yum: name=nifi state=present
-  when: ansible_os_family == "RedHat" and (hortonworks | bool)
+  when: ansible_os_family == "RedHat" and hortonworks|bool
   tags: [install,hortonworks]

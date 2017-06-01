@@ -15,4 +15,13 @@ nifi_run_as: nifi
 nifi_java_min_memory: 512m
 nifi_java_max_memory: 512m
 nifi_install_service: True
+nifi_remote_input_host: "{{ inventory_hostname }}"
+nifi_remote_input_socket_port: 9090
+nifi_web_http_host: "{{ inventory_hostname }}"
+nifi_web_http_port: 8080
+nifi_cluster_is_node: False
+nifi_cluster_node_protocol_port: 10101
+nifi_zk_use_embedded: False
+nifi_zk_connect_string: "{{ ansible_play_hosts | join(':2181,') }}:2181"
+nifi_zk_port_range: 2888:3888
 hortonworks: False
