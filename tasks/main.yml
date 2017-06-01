@@ -230,7 +230,7 @@
     owner: "{{ nifi_run_as }}"
     group: "{{ nifi_run_as }}"
     backup: yes
-  with_indexed_items: "{{ ansible_play_hosts | sort }}"
+  with_indexed_items: "{{ ansible_play_hosts }}"
   when: nifi_cluster_is_node|bool and nifi_zk_use_embedded|bool
   tags: [conf,cluster,zookeeper]
 
@@ -244,16 +244,9 @@
   when: nifi_cluster_is_node|bool and nifi_zk_use_embedded|bool
   tags: [conf,cluster,zookeeper]
 
-- name: set facts for zookeeper myid files
-  set_fact:
-    nifi_cluster_zk_ids: "{{ { item.1: item.0 + 1 } | combine(nifi_cluster_zk_ids|default({})) }}"
-  with_indexed_items: "{{ ansible_play_hosts | sort }}"
-  when: nifi_cluster_is_node|bool and nifi_zk_use_embedded|bool
-  tags: [conf,cluster,zookeeper]
-
 - name: set zookeeper id in zookeeper myid file
   copy:
-    content: "{{ nifi_cluster_zk_ids[inventory_hostname] }}"
+    content: "{{ ansible_play_hosts.index(inventory_hostname) + 1 }}"
     dest: "{{ nifi_install_dir }}/state/zookeeper/myid"
     mode: 0644
     owner: "{{ nifi_run_as }}"
@@ -265,7 +258,7 @@
   replace:
     dest: "{{ nifi_install_dir }}/conf/state-management.xml"
     regexp: '^(\s*)<property name="Connect String">[^<]*<\/property>\s*'
-    replace: '\1<property name="Connect String">{{ nifi_zk_connect_string }}</property>'
+    replace: '\1<property name="Connect String">{{ nifi_zk_connect_string }}</property>\n'
     owner: "{{ nifi_run_as }}"
     group: "{{ nifi_run_as }}"
     backup: yes

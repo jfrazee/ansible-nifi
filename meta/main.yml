@@ -6,13 +6,13 @@ galaxy_info:
   license: Apache License, Version 2.0 (ASLv2)
   min_ansible_version: 2.2
   platforms:
-  - name: Amazon
-   versions:
-   - 2016.03
-   - 2016.09
-   - 2017.03
-  - name: EL
-   versions:
-   - 6
-   - 7
+    - name: Amazon
+      versions:
+      - 2016.03
+      - 2016.09
+      - 2017.03
+    - name: EL
+      versions:
+      - 6
+      - 7
   galaxy_tags: []

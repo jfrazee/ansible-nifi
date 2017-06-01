@@ -73,8 +73,7 @@ Vagrant.configure("2") do |config|
   (0...(num_hosts = [(ENV['NUM_HOSTS'] || 1).to_i, 1].max)).each do |i|
     config.vm.define "host#{i}", primary: (i == 0) do |host|
       # Create a private network, which allows host-only access to the machine
-      # using a specific IP.
-      # host.vm.network "private_network", ip: "10.0.1.#{10 + i}"
+      # using IPs assigned via DHCP.
       host.vm.network "private_network", type: "dhcp"
 
       # Enable provisioning with Ansible.

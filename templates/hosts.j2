@@ -5,7 +5,7 @@
  # Should use ansible_default_ipv4 instead of ansible_all_ipv4_addresses but
  # this breaks on Vagrant + VirtualBox b/c it uses the same IP for every eth0
  #}
-{% for item in ansible_play_hosts | sort %}
+{% for item in ansible_play_hosts %}
 {% if hostvars[item].inventory_hostname_short != hostvars[item].inventory_hostname %}
 {{ hostvars[item].ansible_all_ipv4_addresses | first }} {{ hostvars[item].inventory_hostname_short }} {{ hostvars[item].inventory_hostname }}
 {% else %}
