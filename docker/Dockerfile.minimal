@@ -1,0 +1,20 @@
+FROM alpine:latest
+
+# Install the stuff we absolutely need
+RUN apk update
+RUN apk add python3 sudo openssh-server openssh-sftp-server
+RUN mkdir /etc/security
+
+# Add the vagrant user
+RUN adduser -D -s /bin/ash vagrant && passwd -u vagrant
+RUN mkdir -p ~vagrant/.ssh && chmod 700 ~vagrant/.ssh
+RUN wget -O ~vagrant/.ssh/authorized_keys https://raw.githubusercontent.com/hashicorp/vagrant/master/keys/vagrant.pub && chmod 600 ~vagrant/.ssh/authorized_keys
+RUN chown -R vagrant:vagrant ~vagrant/.ssh
+
+# Make things nice and insecure ;)
+RUN echo "vagrant ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/vagrant
+RUN echo "Set disable_coredump false" > /etc/sudo.conf
+
+# Start ssh
+EXPOSE 22 8080 9443 2181 2281
+CMD /usr/bin/ssh-keygen -A && /usr/sbin/sshd -D

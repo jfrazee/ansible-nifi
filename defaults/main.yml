@@ -1,27 +1,34 @@
 ---
 # defaults file for ansible-nifi
+java_version: 11
 pam_limits_nofile: 50000
 pam_limits_nproc: 10000
 net_ipv4_ip_local_port_range: 10000 65000
 vm_swapiness: 0
-nifi_version: 1.1.2
-nifi_release_archive: https://archive.apache.org/dist/nifi
-nifi_package_url: "{{ nifi_release_archive }}/{{ nifi_version }}/nifi-{{ nifi_version }}-bin.zip"
-nifi_toolkit_package_url: "{{ nifi_release_archive }}/{{ nifi_version }}/nifi-toolkit-{{ nifi_version }}-bin.zip"
-nifi_install_root: /usr/local
-nifi_install_dir: "{{ nifi_install_root }}/nifi-{{ nifi_version }}"
-nifi_toolkit_install_dir: "{{ nifi_install_root }}/nifi-toolkit-{{ nifi_version }}"
+create_etc_hosts: yes
+force_tls_v1_2: yes
+nifi_version: 1.11.3
 nifi_run_as: nifi
-nifi_java_min_memory: 512m
-nifi_java_max_memory: 512m
-nifi_install_service: True
-nifi_remote_input_host: "{{ inventory_hostname }}"
-nifi_remote_input_socket_port: 9090
-nifi_web_http_host: "{{ inventory_hostname }}"
+nifi_install_prefix: /opt
+nifi_java_use_g1gc: yes
+nifi_java_min_heap: 512m
+nifi_java_max_heap: 512m
+nifi_web_http_host: "{{ ansible_hostname }}"
 nifi_web_http_port: 8080
-nifi_cluster_is_node: False
-nifi_cluster_node_protocol_port: 10101
-nifi_zk_use_embedded: False
-nifi_zk_connect_string: "{{ ansible_play_hosts | join(':2181,') }}:2181"
-nifi_zk_port_range: 2888:3888
-hortonworks: False
+nifi_cluster: no
+nifi_cluster_node_protocol_port: 11443
+nifi_cluster_flow_election_wait_time: 120 secs
+nifi_cluster_flow_election_candidates: "{{ ansible_play_hosts | length }}"
+nifi_log_compression: gzip
+zookeeper_version: 3.5.7
+zookeeper_install: # set to 'yes' or 'local' to install ZooKeeper on the NiFi nodes, 'embedded' to use the embedded NiFi ZooKeeper server, and 'no' or 'none' if providing an externally managed ZooKeeper to use with NiFi
+zookeeper_install_prefix: /opt
+zookeeper_client_port: 2181
+zookeeper_server_ports: 2888:3888
+zookeeper_connect_string: "{{ ansible_play_hosts | map('extract', hostvars, 'ansible_hostname') | list | join(':' + zookeeper_client_port|string + ',') }}:{{ zookeeper_client_port }}"
+zookeeper_admin_server_enabled: yes
+zookeeper_admin_server_port: 9099
+package_base_url: # leave this empty to fetch from Apache Archive or mirror
+apache_archive_url: https://archive.apache.org/dist/
+apache_mirror_info_url: https://www.apache.org/dyn/closer.lua
+apache_mirror_info_country_codes: # leave this empty to check all countries; this can sometimes result in the preferred mirror being downloads.a.o no matter where the host is located

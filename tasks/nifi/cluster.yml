@@ -1,0 +1,46 @@
+---
+# tasks/nifi/cluster.yml file for ansible-nifi
+- name: setup nifi cluster
+  block:
+    - name: set cluster node to {{ nifi_cluster | bool | lower }} in ./conf/nifi.properties
+      lineinfile:
+        dest: "{{ nifi_home }}/conf/nifi.properties"
+        regexp: '^nifi\.cluster\.is\.node=.*'
+        line: nifi.cluster.is.node={{ nifi_cluster | bool | lower }}
+
+    - name: set cluster node address in ./conf/nifi.properties
+      lineinfile:
+        dest: "{{ nifi_home }}/conf/nifi.properties"
+        regexp: '^nifi\.cluster\.node\.address=.*'
+        line: nifi.cluster.node.address={{ ansible_hostname }}
+
+    - name: set cluster node port to {{ nifi_cluster_node_protocol_port }} in ./conf/nifi.properties
+      lineinfile:
+        dest: "{{ nifi_home }}/conf/nifi.properties"
+        regexp: '^nifi\.cluster\.node\.protocol\.port=.*'
+        line: nifi.cluster.node.protocol.port={{ nifi_cluster_node_protocol_port }}
+
+    - name: set flow election wait time to {{ nifi_cluster_flow_election_wait_time }} in ./conf/nifi.properties
+      lineinfile:
+        dest: "{{ nifi_home }}/conf/nifi.properties"
+        regexp: '^nifi\.cluster\.flow\.election\.max\.wait\.time=.*'
+        line: nifi.cluster.flow.election.max.wait.time={{ nifi_cluster_flow_election_wait_time }}
+
+    - name: set max flow election candidates to {{ nifi_cluster_flow_election_candidates }} in ./conf/nifi.properties
+      lineinfile:
+        dest: "{{ nifi_home }}/conf/nifi.properties"
+        regexp: '^nifi\.cluster\.flow\.election\.max\.candidates=.*'
+        line: nifi.cluster.flow.election.max.candidates={{ nifi_cluster_flow_election_candidates }}
+
+    - name: set zookeeper connect string in ./conf/nifi.properties
+      lineinfile:
+        dest: "{{ nifi_home }}/conf/nifi.properties"
+        regexp: '^nifi\.zookeeper\.connect\.string=.*'
+        line: nifi.zookeeper.connect.string={{ zookeeper_connect_string }}
+
+    - name: set zookeeper connect string in ./conf/state-management.xml
+      replace:
+        dest: "{{ nifi_home }}/conf/state-management.xml"
+        regexp: '<property name="Connect String">[^<]*<\/property>'
+        replace: '<property name="Connect String">{{ zookeeper_connect_string }}</property>'
+  when: nifi_cluster|bool

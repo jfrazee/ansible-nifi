@@ -1,0 +1,21 @@
+---
+# tasks/main/RedHat.yml file for ansible-nifi
+- name: install dependencies and do basic setup (debian)
+  block:
+    - name: install base dependencies
+      apt:
+        name: ["iproute2", "unzip", "python3", "python3-apt", "python3-psutil"]
+        state: present
+
+    - name: set default python alternative
+      alternatives:
+        link: /usr/bin/python
+        name: python
+        path: /usr/bin/python3        
+
+    - name: install supervisor
+      apt:
+        name: supervisor
+        state: present
+      when: ansible_virtualization_type == "Docker"
+  when: ansible_os_family == "Debian"

@@ -1,14 +1,10 @@
 # {{ ansible_managed }}
-127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
-::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-{#
- # Should use ansible_default_ipv4 instead of ansible_all_ipv4_addresses but
- # this breaks on Vagrant + VirtualBox b/c it uses the same IP for every eth0
- #}
-{% for item in ansible_play_hosts %}
-{% if hostvars[item].inventory_hostname_short != hostvars[item].inventory_hostname %}
-{{ hostvars[item].ansible_all_ipv4_addresses | first }} {{ hostvars[item].inventory_hostname_short }} {{ hostvars[item].inventory_hostname }}
-{% else %}
-{{ hostvars[item].ansible_all_ipv4_addresses | first }} {{ hostvars[item].inventory_hostname }}
-{% endif %}
+127.0.0.1    localhost
+::1          localhost ip6-localhost ip6-loopback
+fe00::0      ip6-localnet
+ff00::0      ip6-mcastprefix
+ff02::1      ip6-allnodes
+ff02::2      ip6-allrouters
+{% for host in ansible_play_hosts %}
+{{ hostvars[host].ansible_default_ipv4.address }}   {{ hostvars[host].ansible_hostname }}
 {% endfor %}

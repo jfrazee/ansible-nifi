@@ -1,0 +1,30 @@
+---
+# tasks/java/RedHat.yml file for ansible-nifi
+- name: install java (redhat)
+  block:
+    - name: set java version
+      set_fact:
+        # java_version: "{% if java_version|string == '1.8' or java_version|string == '8' %}1.8.0{% else %}{{ java_version }}{% endif %}"
+        java_version: "{{ (java_version|string == '8' or java_version|string == '1.8') | ternary('1.8.0', java_version) }}"
+
+    - name: install java {{ java_version }}
+      dnf:
+        name: "java-{{ java_version }}-openjdk-headless"
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: stat /usr/lib/jvm/jre-{{ java_version }}
+      stat:
+        path: /usr/lib/jvm/jre-{{ java_version }}
+      register: java_home_info
+
+    - name: set java_home
+      set_fact:
+        java_home: "{{ java_home_info.stat.islnk | ternary(java_home_info.stat.lnk_source, java_home_info.stat.path) }}"
+
+    - name: set default java alternative
+      alternatives:
+        link: /usr/bin/java
+        name: java
+        path: "{{ java_home }}/bin/java"
+  when: ansible_os_family == "RedHat"
