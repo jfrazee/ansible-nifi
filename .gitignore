@@ -1,4 +1,9 @@
 .DS_Store
 .vagrant/
+.env
+.env.yml
+tmp/
 *.retry
-tmp/*
+*.log
+files/*.zip
+files/*.tar.gz

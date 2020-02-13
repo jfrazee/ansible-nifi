@@ -1,0 +1,31 @@
+---
+# tasks/java/Alpine.yml file for ansible-nifi
+- name: install java (alpine)
+  block:
+    - name: set java version
+      set_fact:
+        java_version: "{{ (java_version|string == '8' or java_version|string == '1.8.0') | ternary('1.8', java_version) }}"
+
+    - name: install java {{ java_version }}
+      apk:
+        name: "{{ (java_version|string == '1.8') | ternary('openjdk8-jre-base', 'openjdk11-jre-headless') }}"
+        state: present
+      when: ansible_os_family == "Alpine"
+
+    - name: stat /usr/lib/jvm/java-{{ java_version }}-openjdk
+      stat:
+        path: /usr/lib/jvm/java-{{ java_version }}-openjdk
+      register: java_home_info
+
+    - name: set java_home
+      set_fact:
+        java_home: "{{ java_home_info.stat.islnk | ternary(java_home_info.stat.lnk_source, java_home_info.stat.path) }}"
+
+    - name: set default java alternative
+      file:
+        src: "{{ java_home }}"
+        dest: /usr/lib/jvm/default-jvm
+        owner: root
+        group: root
+        state: link
+  when: ansible_os_family == "Alpine"

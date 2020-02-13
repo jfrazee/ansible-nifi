@@ -1,0 +1,21 @@
+---
+# tasks/main/Alpine.yml file for ansible-nifi
+- name: install dependencies and do basic setup (alpine)
+  block:
+    - name: install dependencies
+      apk:
+        name: ["bash", "tar", "grep", "gzip", "unzip", "python3"]
+        state: present
+
+    - name: create /etc/security
+      file:
+        path: /etc/security
+        state: directory
+        mode: 0755
+
+    - name: install supervisor
+      apk:
+        name: supervisor
+        state: present
+      when: ansible_virtualization_type == "docker"
+  when: ansible_os_family == "Alpine"

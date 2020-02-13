@@ -1,0 +1,149 @@
+---
+# tasks/nifi/common.yml file for ansible-nifi
+- name: set nifi_run_as
+  set_fact:
+    nifi_run_as: "{{ nifi_run_as | default('nifi', true) }}"
+  when: not nifi_run_as
+
+- name: create nifi system group
+  group:
+    name: "{{ nifi_run_as }}"
+    state: present
+  when: nifi_run_as != "root"
+
+- name: create nifi system account
+  user:
+    name: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    append: yes
+    system: yes
+    state: present
+  when: nifi_run_as != "root"
+
+- name: get closest apache mirror for nifi
+  uri:
+    url: "{{ apache_mirror_info_url }}/nifi/{{ nifi_version }}?as_json{{ not apache_mirror_info_country_codes | ternary('', '&cca2=' + apache_mirror_info_country_codes) }}"
+    return_content: yes
+  register: nifi_mirror_info
+  until: nifi_mirror_info.status == 200
+  retries: 5
+  delay: 1
+  when: not package_base_url
+
+- name: set nifi package base url
+  set_fact:
+    nifi_package_base_url: "{{ nifi_mirror_info.json.in_dist | ternary(nifi_mirror_info.json.preferred, apache_archive_url) }}{{ nifi_mirror_info.json.path_info }}"
+    cacheable: yes
+  when: not package_base_url
+
+- name: set nifi package urls
+  set_fact:
+    nifi_package_url: "{{ nifi_package_base_url | default(package_base_url, true) }}/nifi-{{ nifi_version }}-bin.zip"
+    nifi_toolkit_package_url: "{{ nifi_package_base_url | default(package_base_url, true) }}/nifi-toolkit-{{ nifi_version }}-bin.zip"
+    cacheable: yes
+
+- name: create nifi install directory
+  file:
+    path: "{{ nifi_install_prefix }}"
+    state: directory
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+
+- name: fetch {{ nifi_package_url }}
+  unarchive:
+    src: "{{ nifi_package_url }}"
+    dest: "{{ nifi_install_prefix }}"
+    creates: "{{ nifi_install_prefix }}/nifi-{{ nifi_version }}"
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    remote_src: yes
+
+- name: create symlink to "{{ nifi_install_prefix }}/nifi"
+  file:
+    src: "{{ nifi_install_prefix }}/nifi-{{ nifi_version }}"
+    dest: "{{ nifi_install_prefix }}/nifi"
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    state: link
+
+- name: set nifi_home
+  set_fact:
+    nifi_home: "{{ nifi_install_prefix }}/nifi"
+    cacheable: yes
+
+- name: fetch {{ nifi_toolkit_package_url }}
+  unarchive:
+    src: "{{ nifi_toolkit_package_url }}"
+    dest: "{{ nifi_install_prefix }}"
+    creates: "{{ nifi_install_prefix }}/nifi-toolkit-{{ nifi_version }}"
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    remote_src: yes
+
+- name: create symlink to "{{ nifi_install_prefix }}/nifi-toolkit"
+  file:
+    src: "{{ nifi_install_prefix }}/nifi-toolkit-{{ nifi_version }}"
+    dest: "{{ nifi_install_prefix }}/nifi-toolkit"
+    owner: "{{ nifi_run_as }}"
+    group: "{{ nifi_run_as }}"
+    state: link
+
+- name: set nifi_toolkit_home
+  set_fact:
+    nifi_toolkit_home: "{{ nifi_install_prefix }}/nifi-toolkit"
+    cacheable: yes
+
+- name: set JAVA_HOME in ./bin/nifi-env.sh
+  lineinfile:
+    dest: "{{ nifi_home }}/bin/nifi-env.sh"
+    regexp: '^#?export JAVA_HOME=.*'
+    line: 'export JAVA_HOME={{ java_home }}'
+
+- name: set run.as={{ nifi_run_as }} in ./conf/bootstrap.conf
+  lineinfile:
+    dest: "{{ nifi_home }}/conf/bootstrap.conf"
+    regexp: '^run\.as=.*'
+    line: run.as={{ nifi_run_as }}
+
+- name: set nifi java G1GC settings in ./conf/boostrap.conf
+  block:
+    - name: set -XX:+UseG1GC in ./conf/bootstrap.conf
+      lineinfile:
+        dest: "{{ nifi_home }}/conf/bootstrap.conf"
+        regexp: '^#(java\.arg\.\d+=-XX:\+UseG1GC)'
+        line: '\1'
+        backrefs: yes
+  when: nifi_java_use_g1gc|bool and java_version|string != '1.8' and java_version|string != '1.8.0' and java_version|string != '8'
+
+- name: set -Xms={{ nifi_java_min_heap }} in ./conf/bootstrap.conf
+  lineinfile:
+    path: "{{ nifi_home }}/conf/bootstrap.conf"
+    regexp: '^java\.arg.(\d+)=-Xms.*'
+    line: 'java.arg.\1=-Xms{{ nifi_java_min_heap }}'
+    backrefs: yes
+
+- name: set -Xmx={{ nifi_java_max_heap }} in ./conf/bootstrap.conf
+  lineinfile:
+    path: "{{ nifi_home }}/conf/bootstrap.conf"
+    regexp: '^java\.arg.(\d+)=-Xmx.*'
+    line: 'java.arg.\1=-Xmx{{ nifi_java_max_heap }}'
+    backrefs: yes
+
+- name: enable compressed logs in ./conf/logback.xml
+  replace:
+    dest: "{{ nifi_home }}/conf/logback.xml"
+    regexp: '^(.*)\.log(?:\.(?:gz|zip))?<\/fileNamePattern>$'
+    replace: '\1.log.{{ (nifi_log_compression|lower == "gzip") | ternary("gz", nifi_log_compression|lower) }}</fileNamePattern>'
+  when: nifi_log_compression|lower == 'gzip' or nifi_log_compression|lower == 'zip'
+
+- name: set http hostname in ./conf/nifi.properties
+  lineinfile:
+    dest: "{{ nifi_home }}/conf/nifi.properties"
+    regexp: '^nifi\.web\.http\.host=.*'
+    line: nifi.web.http.host={{ nifi_web_http_host }}
+
+- name: set http port to {{ nifi_web_http_port }} in ./conf/nifi.properties
+  lineinfile:
+    dest: "{{ nifi_home }}/conf/nifi.properties"
+    regexp: '^nifi\.web\.http\.port=.*'
+    line: nifi.web.http.port={{ nifi_web_http_port }}

@@ -1,0 +1,26 @@
+---
+# tasks/init/supervisord.conf for ansible-nifi
+- name: setup supervisord
+  block:
+    - name: create /etc/supervisor /etc/supervisor/conf.d /var/log/supervisor
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: 0755
+      with_items: ["/etc/supervisor.d", "/etc/supervisor/conf.d", "/var/log/supervisor"]
+
+    - name: create /etc/supervisor/supervisord.conf
+      template:
+        src: files/supervisord.conf
+        dest: /etc/supervisor/supervisord.conf
+        mode: 0644
+
+    - name: create /etc/supervisor.d/nifi.conf
+      template:
+        src: templates/nifi.conf.j2
+        dest: /etc/supervisor/conf.d/nifi.conf
+        mode: 0644
+
+    - name: supervisorctl update all
+      shell: /usr/bin/supervisorctl update all
+  when: ansible_virtualization_type == "docker"

@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+tickTime=2000
+initLimit=10
+syncLimit=5
+dataDir={{ zookeeper_install_prefix }}/zookeeper/data
+#clientPort={{ zookeeper_client_port | default(2181, true) }}
+maxClientCnxns=60
+{% if zookeeper_admin_server_enabled|default("yes", true)|bool %}
+admin.serverPort={{ zookeeper_admin_server_port | default("9099", true) }}
+{% else %}
+admin.enableServer=false
+{% endif %}
+
+# Servers
+{% for host in ansible_play_hosts %}
+server.{{ loop.index }}={{ hostvars[host].ansible_hostname }}:{{ zookeeper_server_ports | default("2888:3888", true) }};{{ zookeeper_client_port | default(2181, true) }}
+{% endfor %}

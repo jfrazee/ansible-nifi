@@ -1,0 +1,33 @@
+---
+# tasks/java/Debian.yml file for ansible-nifi
+- name: install java (debian)
+  block:
+    - name: set java version
+      set_fact:
+        java_version: "{% if java_version|string == '1.8' or java_version|string == '1.8.0' %}8{% else %}{{ java_version }}{% endif %}"
+
+    - name: install java {{ java_version }}
+      apt:
+        name: ["openjdk-{{ java_version }}-jdk-headless", "openjdk-{{ java_version }}-jdk", "maven"]
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: stat /usr/lib/jvm/java-{{ java_version }}-openjdk-amd64
+      stat:
+        path: /usr/lib/jvm/java-{{ java_version }}-openjdk-amd64
+      register: java_home_info
+
+    - name: set java_home
+      set_fact:
+        java_home: "{% if java_home_info.stat.islnk %}{{ java_home_info.stat.lnk_source }}{% else %}{{ java_home_info.stat.path }}{% endif %}"
+
+    - name: set default java alternative
+      alternatives:
+        name: java
+        path: "{{ java_home }}/bin/java"
+
+    - name: set default javac alternative
+      alternatives:
+        name: javac
+        path: "{{ java_home }}/bin/javac"
+  when: ansible_os_family == "Debian"

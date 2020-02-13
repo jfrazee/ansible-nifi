@@ -1,16 +1,14 @@
 ---
-# tasks file for ansible-nifi
-- name: log hostvars to /root/ansible-hostvars.json
-  copy: content={{ hostvars | to_nice_json }} dest=/root/ansible-hostvars.json
-  tags: [setup]
+# tasks/main.yml file for ansible-nifi
+- include_tasks: ./base/{{ ansible_os_family }}.yml
 
-- name: install required yum packages
-  yum: name={{ item }} state=present
-  with_items:
-    - unzip
-    - java-1.8.0-openjdk-headless
-  when: ansible_os_family == "RedHat"
-  tags: [setup]
+- name: create /etc/hosts
+  template:
+    src: templates/hosts.j2
+    dest: /etc/hosts
+    mode: 0644
+    unsafe_writes: "{{ ansible_virtualization_type == 'docker' }}"
+  when: create_etc_hosts | default("yes", true) | bool
 
 - name: set nofile ulimit to {{ pam_limits_nofile }}
   pam_limits:
@@ -19,11 +17,9 @@
     limit_item: nofile
     value: "{{ pam_limits_nofile }}"
     use_max: yes
-    backup: yes
   with_items:
     - hard
     - soft
-  tags: [setup]
 
 - name: set nproc ulimit to {{ pam_limits_nproc }}
   pam_limits:
@@ -32,11 +28,9 @@
     limit_item: nproc
     value: "{{ pam_limits_nproc }}"
     use_max: yes
-    backup: yes
   with_items:
     - hard
     - soft
-  tags: [setup]
 
 - name: set net.ipv4.ip_local_port_range={{ net_ipv4_ip_local_port_range }}
   sysctl:
@@ -45,238 +39,75 @@
     sysctl_set: yes
     state: present
     reload: yes
-  tags: [setup]
+  when: ansible_virtualization_type != "docker"
 
 - name: set vm.swapiness={{ vm_swapiness }}
   lineinfile:
     dest: /etc/sysctl.conf
     regexp: '^vm.swapiness='
     line: vm.swapiness={{ vm_swapiness }}
-    backup: yes
-  tags: [setup]
 
-- name: create /etc/hosts from host inventory
+- include_tasks: ./java/{{ ansible_os_family }}.yml
+
+# See https://www.java.com/en/configure_crypto.html
+- name: force TLSv1.2 with java
+  block:
+    - name: set java_security_file
+      set_fact:
+        java_security_file: "{{ java_home }}/{{ (java_version|string == '1.8' or java_version|string == '1.8.0' or java_version|string == '8') | ternary('jre/lib/security/java.security', 'conf/security/java.security') }}"
+        cacheable: yes
+
+    - name: check for TLSv1, TLSv1.1 in java.security file
+      shell: set -o pipefail; grep -Pzo '(?sm)^jdk\.tls\.disabledAlgorithms=.*?(?<!\\)\n' {{ java_security_file }} | grep -Pz '\b{{ item | regex_escape }}(\s*,\s*|\Z)'
+      register: grep_result
+      with_items: ["TLSv1", "TLSv1.1"]
+      failed_when: grep_result.rc > 1 or grep_result.stderr|length > 0
+      changed_when: grep_result.rc == 1
+
+    - name: disable TLSv1, TLSv1.1
+      replace:
+        path: "{{ java_security_file }}"
+        regexp: '(?sm)^jdk\.tls\.disabledAlgorithms=(.*?)(?<!\\)\n'
+        replace: 'jdk.tls.disabledAlgorithms=\1, {{ item }}\n'
+        backup: yes
+      with_items: "{{ grep_result.results | selectattr('rc', 'equalto', 1) | map(attribute='item') | list }}"
+  when: force_tls_v1_2 | default("yes", true) | bool
+
+- name: set java random source to /dev/urandom
+  lineinfile:
+    dest: "{{ java_security_file }}"
+    regexp: '^securerandom\.source=.*$'
+    line: 'securerandom.source=file:/dev/urandom'
+    backup: yes
+
+- name: create /etc/profile.d/java.sh
   template:
-    src: templates/hosts.j2
-    dest: /etc/hosts
+    src: templates/java.sh.j2
+    dest: /etc/profile.d/java.sh
     mode: 0644
-    backup: yes
-  tags: [setup]
 
-- name: create nifi system group
-  group:
-    name: "{{ nifi_run_as }}"
-    state: present
-  when: nifi_run_as != "root"
-  tags: [setup]
+- include_tasks: ./nifi/common.yml
 
-- name: create nifi system account
-  user:
-    name: "{{ nifi_run_as }}"
-    groups: "{{ nifi_run_as }}"
-    append: yes
-    system: yes
-    state: present
-  when: nifi_run_as != "root"
-  tags: [setup]
+- name: set nifi_cluster
+  set_fact:
+    nifi_cluster: nifi_cluster | default("no", true) | bool
+    cacheable: yes
 
-- include: apache.yml
-  when: not hortonworks|bool
-  tags: [install,apache]
+- include_tasks: ./nifi/{{ nifi_cluster | bool | ternary("cluster", "standalone") }}.yml
 
-- include: hortonworks.yml
-  when: hortonworks|bool
-  tags: [install,hortonworks]
+- name: set zookeeper_install
+  set_fact:
+    zookeeper_install: "{% if nifi_cluster|bool and (zookeeper_install|bool or zookeeper_install == 'local') %}local{% elif nifi_cluster|bool and zookeeper_install|default('embedded', true) == 'embedded' %}embedded{% else %}none{% endif %}"
+    cacheable: yes
 
-- name: set run.as={{ nifi_run_as }} in bootstrap.conf
-  lineinfile:
-    dest: "{{ nifi_install_dir }}/conf/bootstrap.conf"
-    regexp: '^run\.as=.*'
-    line: run.as={{ nifi_run_as }}
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  when: nifi_run_as != "root"
-  notify: restart nifi
-  tags: [conf]
+- include_tasks: ./zookeeper/{{ zookeeper_install }}.yml
+  when: nifi_cluster|bool
 
-- name: set -Xms={{ nifi_java_min_memory }} in bootstrap.conf
-  lineinfile:
-    dest: "{{ nifi_install_dir }}/conf/bootstrap.conf"
-    regexp: '^java\.arg\.2=.*'
-    line: java.arg.2=-Xms{{ nifi_java_min_memory }}
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  notify: restart nifi
-  tags: [conf]
+- name: set supervisord_install
+  set_fact:
+    supervisord_install: "{{ ansible_virtualization_type == 'docker' }}"
+    cacheable: yes
 
-- name: set -Xmx={{ nifi_java_max_memory }} in bootstrap.conf
-  lineinfile:
-    dest: "{{ nifi_install_dir }}/conf/bootstrap.conf"
-    regexp: '^java\.arg\.3=.*'
-    line: java.arg.3=-Xmx{{ nifi_java_max_memory }}
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  notify: restart nifi
-  tags: [conf]
-
-- name: use gzip compression for logs in logback.xml
-  replace:
-    dest: "{{ nifi_install_dir }}/conf/logback.xml"
-    regexp: '^(.*)\.log<\/fileNamePattern>$'
-    replace: '\1.log.gz</fileNamePattern>'
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  tags: [conf]
-
-- name: set site-to-site hostname to {{ inventory_hostname }} in nifi.properties
-  lineinfile:
-    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
-    regexp: '^nifi\.remote\.input\.host=.*'
-    line: nifi.remote.input.host={{ nifi_remote_input_host }}
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  tags: [conf]
-
-- name: set site-to-site port to {{ nifi_remote_input_socket_port }} in nifi.properties
-  lineinfile:
-    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
-    regexp: '^nifi\.remote\.input\.socket\.port=.*'
-    line: nifi.remote.input.socket.port={{ nifi_remote_input_socket_port }}
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  tags: [conf]
-
-- name: set web http hostname to {{ inventory_hostname }} in nifi.properties
-  lineinfile:
-    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
-    regexp: '^nifi\.web\.http\.host=.*'
-    line: nifi.web.http.host={{ nifi_web_http_host }}
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  tags: [conf]
-
-- name: set web http port to {{ nifi_web_http_port }} in nifi.properties
-  lineinfile:
-    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
-    regexp: '^nifi\.web\.http\.port=.*'
-    line: nifi.web.http.port={{ nifi_web_http_port }}
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  tags: [conf]
-
-- name: set cluster is node to {{ nifi_cluster_is_node | lower }} in nifi.properties
-  lineinfile:
-    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
-    regexp: '^nifi\.cluster\.is\.node=.*'
-    line: nifi.cluster.is.node={{ nifi_cluster_is_node | lower }}
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  tags: [conf,cluster]
-
-- name: set cluster node address to {{ inventory_hostname }} in nifi.properties
-  lineinfile:
-    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
-    regexp: '^nifi\.cluster\.node\.address=.*'
-    line: nifi.cluster.node.address={{ inventory_hostname }}
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  tags: [conf,cluster]
-
-- name: set cluster node protocol port to {{ nifi_cluster_node_protocol_port }} in nifi.properties
-  lineinfile:
-    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
-    regexp: '^nifi\.cluster\.node\.protocol\.port=.*'
-    line: nifi.cluster.node.protocol.port={{ nifi_cluster_node_protocol_port }}
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  tags: [conf,cluster]
-
-- name: set enable embedded zookeeper to {{ nifi_zk_use_embedded | lower }} in nifi.properties
-  lineinfile:
-    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
-    regexp: '^nifi\.state\.management\.embedded\.zookeeper\.start=.*'
-    line: nifi.state.management.embedded.zookeeper.start={{ nifi_zk_use_embedded | lower }}
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  tags: [conf,cluster,zookeeper]
-
-- name: set zookeeper connect string to {{ nifi_zk_connect_string }} in nifi.properties
-  lineinfile:
-    dest: "{{ nifi_install_dir }}/conf/nifi.properties"
-    regexp: '^nifi\.zookeeper\.connect\.string=.*'
-    line: nifi.zookeeper.connect.string={{ nifi_zk_connect_string }}
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  tags: [conf,cluster,zookeeper]
-
-- name: add hosts to zookeeper.properties
-  lineinfile:
-    dest: "{{ nifi_install_dir }}/conf/zookeeper.properties"
-    regexp: '^server\.{{ item.0 + 1 }}=.*'
-    line: "server.{{ item.0 + 1 }}={{ item.1 }}:{{ nifi_zk_port_range }}"
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  with_indexed_items: "{{ ansible_play_hosts }}"
-  when: nifi_cluster_is_node|bool and nifi_zk_use_embedded|bool
-  tags: [conf,cluster,zookeeper]
-
-- name: create "{{ nifi_install_dir }}/state/zookeeper" directory
-  file:
-    path: "{{ nifi_install_dir }}/state/zookeeper"
-    state: directory
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    mode: 0755
-  when: nifi_cluster_is_node|bool and nifi_zk_use_embedded|bool
-  tags: [conf,cluster,zookeeper]
-
-- name: set zookeeper id in zookeeper myid file
-  copy:
-    content: "{{ ansible_play_hosts.index(inventory_hostname) + 1 }}"
-    dest: "{{ nifi_install_dir }}/state/zookeeper/myid"
-    mode: 0644
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-  when: nifi_cluster_is_node|bool and nifi_zk_use_embedded|bool
-  tags: [conf,cluster,zookeeper]
-
-- name: set zookeeper connect string to {{ nifi_zk_connect_string }} in state-management.xml
-  replace:
-    dest: "{{ nifi_install_dir }}/conf/state-management.xml"
-    regexp: '^(\s*)<property name="Connect String">[^<]*<\/property>\s*'
-    replace: '\1<property name="Connect String">{{ nifi_zk_connect_string }}</property>\n'
-    owner: "{{ nifi_run_as }}"
-    group: "{{ nifi_run_as }}"
-    backup: yes
-  tags: [conf,cluster,zookeeper]
-
-- name: install systemd nifi.service
-  template:
-    src: templates/nifi.service.j2
-    dest: /etc/systemd/system/nifi.service
-    mode: 0644
-    backup: yes
-  when: nifi_install_service|bool
-  tags: [conf,systemd]
-
-- name: enable nifi.service
-  service:
-    name: nifi
-    state: started
-    enabled: yes
-  when: nifi_install_service|bool
-  tags: [conf,systemd]
+# For some reason include* can't resolve ansible_virtualization_type so we set
+# supervisord_install above so we can do the conditional include like so.
+- include_tasks: ./init/{{ supervisord_install | ternary("supervisord", "systemd" ) }}.yml

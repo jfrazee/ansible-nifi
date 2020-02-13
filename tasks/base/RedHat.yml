@@ -1,0 +1,21 @@
+---
+# tasks/main/RedHat.yml file for ansible-nifi
+- name: install dependencies and do basic setup (redhat)
+  block:
+    - name: install dependencies
+      dnf:
+        name: ["python3", "unzip", "supervisor"]
+        state: present
+
+    - name: set default python alternative
+      alternatives:
+        link: /usr/bin/python
+        name: python
+        path: /usr/bin/python3
+
+    - name: set default pip alternative
+      alternatives:
+        link: /usr/bin/pip
+        name: pip
+        path: /usr/bin/pip3
+  when: ansible_os_family == "RedHat"
