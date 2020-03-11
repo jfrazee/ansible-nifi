@@ -7,6 +7,7 @@ After=network.target
 Type=forking
 User={{ nifi_run_as }}
 Group={{ nifi_run_as }}
+Environment="JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk"
 ExecStart={{ nifi_install_dir }}/bin/nifi.sh start
 ExecStop={{ nifi_install_dir }}/bin/nifi.sh stop
 Restart=on-failure
