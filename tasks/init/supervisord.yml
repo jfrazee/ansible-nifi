@@ -2,6 +2,12 @@
 # tasks/init/supervisord.conf for ansible-nifi
 - name: setup supervisord
   block:
+    - name: remove /etc/supervisord.conf /etc/supervisor.d
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items: ["/etc/supervisord.conf", "/etc/supervisor.d"]
+
     - name: create /etc/supervisor /etc/supervisor/conf.d /var/log/supervisor
       file:
         path: "{{ item }}"

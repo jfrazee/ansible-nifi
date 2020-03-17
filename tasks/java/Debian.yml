@@ -8,7 +8,7 @@
 
     - name: install java {{ java_version }}
       apt:
-        name: ["openjdk-{{ java_version }}-jdk-headless", "openjdk-{{ java_version }}-jdk", "maven"]
+        name: openjdk-{{ java_version }}-jre-headless
         state: present
       when: ansible_os_family == "Debian"
 
@@ -19,15 +19,10 @@
 
     - name: set java_home
       set_fact:
-        java_home: "{% if java_home_info.stat.islnk %}{{ java_home_info.stat.lnk_source }}{% else %}{{ java_home_info.stat.path }}{% endif %}"
+        java_home: "{{ java_home_info.stat.islnk | ternary(java_home_info.stat.lnk_source, java_home_info.stat.path) }}"
 
     - name: set default java alternative
       alternatives:
         name: java
         path: "{{ java_home }}/bin/java"
-
-    - name: set default javac alternative
-      alternatives:
-        name: javac
-        path: "{{ java_home }}/bin/javac"
   when: ansible_os_family == "Debian"

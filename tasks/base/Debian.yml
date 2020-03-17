@@ -1,0 +1,9 @@
+---
+# tasks/main/RedHat.yml file for ansible-nifi
+- name: install dependencies and do basic setup (debian)
+  block:
+    - name: install dependencies
+      apt:
+        name: ["iproute2", "unzip", "python3", "python-apt", "supervisor"]
+        state: present
+  when: ansible_os_family == "Debian"

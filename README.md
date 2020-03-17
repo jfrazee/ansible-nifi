@@ -10,6 +10,7 @@ This is an Ansible role for installing and running Apache NiFi, either standalon
 
 The role assumes all Ansible requirements are met on the managed nodes, including sshd, sftp-server, and python. The role and Dockerfiles will also ensure that the following are installed to ensure that all of the included tasks can be excuted:
 
+* iproute(2)
 * bash
 * python3
 * GNU tar
@@ -89,7 +90,7 @@ $ docker build -f Dockerfile.centos -t ansible-nifi/centos .
 
 #### Supervisord
 
-By default supervisord is used for init-like process management when running in Docker containers. The `supervisorctl` command can be used to control NiFi, as well as ZooKeeper if installed locally:
+By default, supervisord is used for init-like process management if the install target is Docker. The `supervisorctl` command can be used to control NiFi, as well as ZooKeeper (if it's installed locally):
 
 ```console
 $ vagrant docker-exec -- sudo supervisorctl status nifi:

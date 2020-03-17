@@ -2,7 +2,7 @@ FROM centos:centos8.1.1911
 
 # Install some normal stuff, yo
 RUN dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
-RUN dnf install -y unzip python3 sudo supervisor openssh-server \
+RUN dnf install -y iproute unzip python3 sudo supervisor openssh-server \
                    java-1.8.0-openjdk-headless java-11-openjdk-headless
 RUN update-alternatives --set python /usr/bin/python3
 RUN update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 300

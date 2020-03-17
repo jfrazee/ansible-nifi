@@ -4,7 +4,7 @@
   block:
     - name: install dependencies
       dnf:
-        name: ["python3", "unzip", "supervisor"]
+        name: ["iproute", "unzip", "python3", "supervisor"]
         state: present
 
     - name: set default python alternative

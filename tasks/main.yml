@@ -58,7 +58,7 @@
         cacheable: yes
 
     - name: check for TLSv1, TLSv1.1 in java.security file
-      shell: set -o pipefail; grep -Pzo '(?sm)^jdk\.tls\.disabledAlgorithms=.*?(?<!\\)\n' {{ java_security_file }} | grep -Pz '\b{{ item | regex_escape }}(\s*,\s*|\Z)'
+      shell: grep -Pzo '(?sm)^jdk\.tls\.disabledAlgorithms=.*?(?<!\\)\n' {{ java_security_file }} | grep -Pz '\b{{ item | regex_escape }}(\s*,\s*|\Z)'
       register: grep_result
       with_items: ["TLSv1", "TLSv1.1"]
       failed_when: grep_result.rc > 1 or grep_result.stderr|length > 0
