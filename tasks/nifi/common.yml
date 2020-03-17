@@ -22,7 +22,7 @@
 
 - name: get closest apache mirror for nifi
   uri:
-    url: "{{ apache_mirror_info_url }}/nifi/{{ nifi_version }}?as_json{{ not apache_mirror_info_country_codes | ternary('', '&cca2=' + apache_mirror_info_country_codes) }}"
+    url: "{{ apache_mirror_info_url }}/nifi/{{ nifi_version }}?as_json"
     return_content: yes
   register: nifi_mirror_info
   until: nifi_mirror_info.status == 200

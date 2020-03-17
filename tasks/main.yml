@@ -95,12 +95,12 @@
 
 - include_tasks: ./nifi/{{ nifi_cluster | bool | ternary("cluster", "standalone") }}.yml
 
-- name: set zookeeper_install
+- name: set zookeeper_install_type
   set_fact:
-    zookeeper_install: "{% if nifi_cluster|bool and (zookeeper_install|bool or zookeeper_install == 'local') %}local{% elif nifi_cluster|bool and zookeeper_install|default('embedded', true) == 'embedded' %}embedded{% else %}none{% endif %}"
+    zookeeper_install_type: "{% if nifi_cluster|bool and (zookeeper_install|bool or zookeeper_install == 'local') %}local{% elif nifi_cluster|bool and zookeeper_install|default('embedded', true) == 'embedded' %}embedded{% else %}none{% endif %}"
     cacheable: yes
 
-- include_tasks: ./zookeeper/{{ zookeeper_install }}.yml
+- include_tasks: ./zookeeper/{{ zookeeper_install_type }}.yml
   when: nifi_cluster|bool
 
 - name: set supervisord_install
