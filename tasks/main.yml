@@ -111,3 +111,25 @@
 # For some reason include* can't resolve ansible_virtualization_type so we set
 # supervisord_install above so we can do the conditional include like so.
 - include_tasks: ./init/{{ supervisord_install | ternary("supervisord", "systemd" ) }}.yml
+
+- name: check whether nifi started successfully
+  block:
+    - name: check whether the UI is available in ./logs/nifi-app.log
+      wait_for:
+        timeout: 300
+        path: "{{ nifi_home }}/logs/nifi-app.log"
+        search_regex: 'JettyServer NiFi has started\. The UI is available at the following URLs'
+      ignore_errors: yes
+    - name: check whether a port is open at :{{ nifi_web_http_port }}
+      wait_for:
+        port: "{{ nifi_web_http_port }}"
+        host: "{{ ansible_hostname }}"
+      ignore_errors: yes
+    - name: check whether the UI is available at http://{{ nifi_web_http_host }}:{{ nifi_web_http_port }}
+      uri:
+        url: http://{{ nifi_web_http_host }}:{{ nifi_web_http_port }}/nifi-api/system-diagnostics
+        return_content: yes
+      register: nifi_system_diagnostics
+      retries: 10
+      delay: 10
+      ignore_errors: yes

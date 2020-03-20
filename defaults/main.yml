@@ -17,7 +17,7 @@ nifi_web_http_host: "{{ ansible_hostname }}"
 nifi_web_http_port: 8080
 nifi_cluster: no
 nifi_cluster_node_protocol_port: 11443
-nifi_cluster_flow_election_wait_time: 90 secs
+nifi_cluster_flow_election_wait_time: 120 secs
 nifi_cluster_flow_election_candidates: "{{ ansible_play_hosts | length }}"
 nifi_log_compression: gzip
 zookeeper_version: 3.5.7
