@@ -4,8 +4,14 @@
   block:
     - name: install dependencies
       apk:
-        name: ["bash", "tar", "grep", "gzip", "unzip", "python3"]
+        name: ["bash", "tar", "grep", "gzip", "unzip", "python3", "py3-psutil"]
         state: present
+
+    - name: install supervisor
+      apk:
+        name: supervisor
+        state: present
+      when: ansible_virtualization_type == "Docker"
 
     - name: create /etc/security
       file:

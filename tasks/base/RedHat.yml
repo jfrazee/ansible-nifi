@@ -2,9 +2,14 @@
 # tasks/main/RedHat.yml file for ansible-nifi
 - name: install dependencies and do basic setup (redhat)
   block:
-    - name: install dependencies
+    - name: add epel to /etc/yum.repos.d
       dnf:
-        name: ["iproute", "unzip", "python3", "supervisor"]
+        name: 'dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm'
+        state: present
+
+    - name: install base dependencies
+      dnf:
+        name: ["iproute", "unzip", "python3"]
         state: present
 
     - name: set default python alternative
@@ -18,4 +23,10 @@
         link: /usr/bin/pip
         name: pip
         path: /usr/bin/pip3
+
+    - name: install supervisor
+      dnf:
+        name: supervisor
+        state: present
+      when: ansible_virtualization_type == "Docker"
   when: ansible_os_family == "RedHat"

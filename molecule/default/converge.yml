@@ -1,0 +1,7 @@
+---
+- name: converge
+  hosts: all
+  tasks:
+    - name: include ansible-nifi
+      include_role:
+        name: ansible-nifi

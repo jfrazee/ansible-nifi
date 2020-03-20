@@ -27,6 +27,22 @@
         dest: /etc/supervisor/conf.d/nifi.conf
         mode: 0644
 
+    - name: check if supervisord is running
+      pids:
+        name: supervisord
+      register: supervisor_process_info
+
+    - name: start supervisord
+      block:
+        - name: set nodaemon=false in /etc/supervisor/supervisord.conf
+          replace:
+            path: /etc/supervisor/supervisord.conf
+            regexp: '^nodaemon\s*=\s*(?:true|false)(.*)$'
+            replace: 'nodaemon=false\1'
+        - name: start supervisord
+          shell: /usr/bin/supervisord -c /etc/supervisor/supervisord.conf
+      when: supervisor_process_info.pids|length <= 0
+
     - name: supervisorctl update all
       shell: /usr/bin/supervisorctl update all
   when: ansible_virtualization_type == "docker"

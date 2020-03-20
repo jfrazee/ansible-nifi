@@ -1,0 +1,29 @@
+FROM alpine:latest
+
+# Install the stuff we kinda sorta need
+RUN apk update
+RUN apk add bash tar grep gzip unzip python3 py3-psutil sudo supervisor \
+            openssh-server openssh-sftp-server openjdk8-jre-base \
+            openjdk11-jre-headless
+RUN mkdir /etc/security /etc/supervisor.d
+
+# Add the vagrant user
+RUN adduser -D -s /bin/ash vagrant && passwd -u vagrant
+RUN mkdir -p ~vagrant/.ssh && chmod 700 ~vagrant/.ssh
+RUN wget -O ~vagrant/.ssh/authorized_keys https://raw.githubusercontent.com/hashicorp/vagrant/master/keys/vagrant.pub \
+    && chmod 600 ~vagrant/.ssh/authorized_keys
+RUN chown -R vagrant:vagrant ~vagrant/.ssh
+
+# Make things nice and insecure ;)
+RUN echo "vagrant ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/vagrant
+RUN echo "Set disable_coredump false" > /etc/sudo.conf
+
+# Setup supervisord, with ssh
+RUN mkdir -p /etc/supervisor /etc/supervisor/conf.d /var/log/supervisor
+RUN rm -rf /etc/supervisord.conf /etc/supervisor.d
+COPY ./files/supervisord.conf /etc/supervisor/supervisord.conf
+COPY ./files/sshd.conf /etc/supervisor/conf.d/sshd.conf
+
+# Start supervisord
+EXPOSE 22 8080 9443 2181 2281
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

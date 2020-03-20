@@ -37,13 +37,15 @@ You can use ansible-nifi in your playbooks by including `nifi` in the list of ro
 
 ### Basic Usage
 
-To get started developing ansible-nifi or using it for NiFi development, first install Ansible, Docker, and Vagrant:
+To get started developing ansible-nifi or using it for Apache NiFi development, first install Ansible, Molecule, Docker, and Vagrant:
 
 ```console
 $ brew install ansible
+$ brew install molecule
 $ brew cask install docker
 $ brew cask install vagrant
 $ vagrant plugin install vagrant-env
+$ pip install "molecule[docker]"
 ```
 
 Then create an `.env.yml` such as:
@@ -53,12 +55,10 @@ Then create an `.env.yml` such as:
 package_base_url: /vagrant/files
 nifi_version: 1.11.3
 nifi_cluster: yes
-zookeeper_install: no
-zookeeper_version: 3.5.7
-dockerfile: Dockerfile.centos
+dockerfile: docker/Dockerfile.ubuntu
 ```
 
-This will tell Vagrant to create a containerized NiFi cluster, with a locally installed ZooKeeper, using binaries from `./files` (instead of fetching from the internet). This makes it possible, for example, to use already downloaded binaries as well as packages built from source instead of fetching the binaries from Apache Software Foundation (ASF) mirrors.
+This will tell Vagrant to create a containerized NiFi cluster using binaries from `./files` instead of fetching from the internet. This makes it possible, for example, to use already downloaded binaries as well as packages built from source instead of fetching the binaries from Apache Software Foundation (ASF) mirrors.
 
 Finally:
 
@@ -70,7 +70,7 @@ $ vagrant up
 
 #### Configuration
 
-For usage in a playbook, the role can be configured using any variable provided in `./defaults/main.yml` (see above). Additionally, when using ansible-nifi with Vagrant, any valid role variable can be set in `./env.yml` and the Ansible shell environment can be set in `.env`. You can inspect these by running Vagrant with the `--dump-vars` option:
+For usage in a playbook, the role can be configured using any variable provided in `./defaults/main.yml` (see above). Additionally, when using ansible-nifi with Vagrant, any valid role variable can be set in `./.env.yml` and the Ansible shell environment can be set in `.env`. You can inspect these by running Vagrant with the `--dump-vars` option:
 
 ```console
 $ vagrant --dump-vars
@@ -80,17 +80,17 @@ $ vagrant --dump-vars
 
 Vagrant is configured to use the Docker provider. A pre-built Docker image can be specified in `.env.yml` with the `image` variable. Otherwise the image will be built on `vagrant up` using either whatever `dockerfile` is set to in `.env.yml` or the current working directory `Dockerfile` (which links to `Dockerfile.alpine` by default).
 
-The provided Dockerfiles are for development and use with Vagrant and *not* for production use. They do show, however, what the assumed dependencies are. The `Dockerfile.minimal` illustrates the minimum; other dependenices (e.g., Java) will get installed during the Ansible provisioning. That said, using containers with dependencies pre-installed will make the play run faster since it won't be downloading required packages from the internet.
+The provided Dockerfiles are for development and use with Vagrant and *not* for production use. They do show, however, what the assumed dependencies are (see `Dockerfile.minimal` for the minimum; other dependencies (e.g., Java) will get installed during the Ansible provisioning). That said, using containers with dependencies pre-installed will make the play run faster since it won't be downloading any required packages from the internet.
 
 You can build Docker images in the usual way:
 
 ```console
-$ docker build -f Dockerfile.centos -t ansible-nifi/centos .
+$ docker build -f docker/Dockerfile.centos -t ansible-nifi/centos .
 ```
 
 #### Supervisord
 
-By default, supervisord is used for init-like process management if the install target is Docker. The `supervisorctl` command can be used to control NiFi, as well as ZooKeeper (if it's installed locally):
+If the install target is a Docker container, supervisord is used for init by default. The `supervisorctl` command can be used to control NiFi, as well as ZooKeeper (if it's installed locally):
 
 ```console
 $ vagrant docker-exec -- sudo supervisorctl status nifi:
@@ -114,13 +114,15 @@ Similar commands can be run using supervisord outside of Vagrant and Docker.
 
 The ansible-nifi role allows you to specify a `package_base_url` to fetch binaries from. This can be used in several ways:
 
-1. Install disconnected from the internet by providing a directory path to the convenience binaries. This works either for local development using Vagrant or production use of the ansible-nifi role.
+1. Install disconnected from the internet by providing a path to the convenience binaries; this should be a directory accessible by the managed host (i.e., attached storage in a VM, Docker container volume, etc.). This works for both local development using Vagrant or production use of the ansible-nifi role.
 2. Install from the `/vagrant` mount so the binaries aren't fetched on every run of `vagrant up`.
-3. Use the binary packages from a source build. These are generated from `mvn clean install -DskipTests` in `./nifi-assembly/target/nifi-<VERSION>-bin.zip`.
+3. Use the binary packages from a source build. These are packaged in `./nifi-assembly/target/nifi-<VERSION>-bin.zip` and `./nifi-toolkit/nifi-toolkit-assembly/target/nifi-toolkit-<VERSION>-bin.zip`.
 
 ## Deployment
 
 ### Local Provisioning
+
+The role can be used to install NiFi locally (instead of running Ansible against a remote host):
 
 ```console
 $ mkdir /etc/ansible/roles
@@ -137,7 +139,7 @@ $ ansible-playbook --extra-vars '@env.yml' playbook.yml
 
 ## Limitations
 
-The role does not currently provide any functionality for configuring TLS for either NiFi or ZooKeeper.
+ansible-nifi does not currently provide any functionality for configuring TLS for either NiFi or ZooKeeper.
 
 ## License
 
