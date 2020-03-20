@@ -4,13 +4,13 @@
   block:
     - name: set enable embedded zookeeper to true in ./conf/nifi.properties
       lineinfile:
-        dest: "{{ nifi_home }}/conf/nifi.properties"
-        regexp: '^nifi\.state\.management\.embedded\.zookeeper\.start=.*'
+        path: "{{ nifi_home }}/conf/nifi.properties"
+        regexp: '^nifi\.state\.management\.embedded\.zookeeper\.start='
         line: nifi.state.management.embedded.zookeeper.start=true
     - name: add server entries to ./conf/zookeeper.properties
       lineinfile:
-        dest: "{{ nifi_home }}/conf/zookeeper.properties"
-        regexp: '^server\.{{ item.0 + 1 }}=.*'
+        path: "{{ nifi_home }}/conf/zookeeper.properties"
+        regexp: '^server\.{{ item.0 + 1 }}='
         line: "server.{{ item.0 + 1 }}={{ item.1 }}:{{ zookeeper_server_ports }};{{ zookeeper_client_port }}"
       with_indexed_items: "{{ ansible_play_hosts | map('extract', hostvars, 'ansible_hostname') | list }}"
     - name: create ./state/zookeeper directory
@@ -27,4 +27,4 @@
         mode: 0644
         owner: "{{ nifi_run_as }}"
         group: "{{ nifi_run_as }}"
-  when: nifi_cluster|bool and zookeeper_install == "embedded"
+  when: nifi_cluster|bool and zookeeper_install_type == "embedded"
