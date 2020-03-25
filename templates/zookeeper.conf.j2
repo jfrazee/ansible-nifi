@@ -1,0 +1,7 @@
+; {{ ansible_managed }}
+[program:zookeeper]
+command={{ zookeeper_install_prefix }}/zookeeper/bin/zkServer.sh start-foreground
+process_name=zookeeper
+user=root
+startsecs=10
+priority=900

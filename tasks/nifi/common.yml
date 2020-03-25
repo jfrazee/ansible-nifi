@@ -10,7 +10,7 @@
     name: "{{ nifi_run_as }}"
     state: present
   when: nifi_run_as != "root"
-
+  
 - name: create nifi system account
   user:
     name: "{{ nifi_run_as }}"

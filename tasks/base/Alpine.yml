@@ -6,22 +6,26 @@
       apk:
         name: ["bash", "tar", "grep", "gzip", "unzip", "python3", "py3-psutil"]
         state: present
+      tags: [always]
 
     - name: install supervisor
       apk:
         name: supervisor
         state: present
       when: ansible_virtualization_type == "Docker"
+      tags: [always]
 
     - name: create /etc/security
       file:
         path: /etc/security
         state: directory
         mode: 0755
+      tags: [always]
 
     - name: install supervisor
       apk:
         name: supervisor
         state: present
       when: ansible_virtualization_type == "docker"
+      tags: [always]
   when: ansible_os_family == "Alpine"

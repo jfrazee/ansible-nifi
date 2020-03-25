@@ -27,4 +27,4 @@
         mode: 0644
         owner: "{{ nifi_run_as }}"
         group: "{{ nifi_run_as }}"
-  when: nifi_cluster|bool and zookeeper_install_type == "embedded"
+  when: nifi_cluster|bool and zookeeper_install == "embedded"

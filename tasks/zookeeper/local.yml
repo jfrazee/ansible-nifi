@@ -11,22 +11,26 @@
       retries: 5
       delay: 1
       when: not package_base_url
+      tags: [zookeeper]
 
     - name: set zookeeper package base url
       set_fact:
         zookeeper_package_base_url: "{{ zookeeper_mirror_info.json.in_dist | ternary(zookeeper_mirror_info.json.preferred, apache_archive_url) }}{{ zookeeper_mirror_info.json.path_info }}"
         cacheable: yes
       when: not package_base_url
+      tags: [zookeeper]
 
     - name: set zookeeper package url
       set_fact:
         zookeeper_package_url: "{{ zookeeper_package_base_url | default(package_base_url, true) }}/apache-zookeeper-{{ zookeeper_version }}-bin.tar.gz"
         cacheable: yes
+      tags: [zookeeper]
 
     - name: create zookeeper install directory
       file:
         path: "{{ zookeeper_install_prefix }}"
         state: directory
+      tags: [zookeeper]
 
     - name: fetch {{ zookeeper_package_url }}
       unarchive:
@@ -38,27 +42,32 @@
           - --no-same-owner
           - --transform
           - s/^apache-zookeeper-{{ zookeeper_version }}-bin/zookeeper-{{ zookeeper_version }}/
+      tags: [zookeeper]
 
     - name: create symlink to {{ zookeeper_install_prefix }}/zookeeper
       file:
         src: "{{ zookeeper_install_prefix }}/zookeeper-{{ zookeeper_version }}"
         dest: "{{ zookeeper_install_prefix }}/zookeeper"
         state: link
+      tags: [zookeeper]
 
     - name: create zookeeper data directory
       file:
         path: "{{ zookeeper_install_prefix }}/zookeeper-{{ zookeeper_version }}/data"
         state: directory
+      tags: [zookeeper]
 
     - name: set zookeeper id
       copy:
         content: "{{ ansible_play_hosts.index(inventory_hostname) + 1 }}"
         dest: "{{ zookeeper_install_prefix }}/zookeeper-{{ zookeeper_version }}/data/myid"
         mode: 0644
+      tags: [zookeeper]
 
     - name: setup zookeeper ./conf/zoo.cfg
       template:
         src: templates/zoo.cfg.j2
         dest: "{{ zookeeper_install_prefix }}/zookeeper/conf/zoo.cfg"
         mode: 0644
-  when: zookeeper_install|bool or zookeeper_install == "local"
+      tags: [zookeeper]
+  when: zookeeper_install == "local"

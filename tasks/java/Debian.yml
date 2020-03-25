@@ -5,24 +5,29 @@
     - name: set java version
       set_fact:
         java_version: "{% if java_version|string == '1.8' or java_version|string == '1.8.0' %}8{% else %}{{ java_version }}{% endif %}"
+      tags: [java, zookeeper]
 
     - name: install java {{ java_version }}
       apt:
         name: openjdk-{{ java_version }}-jre-headless
         state: present
       when: ansible_os_family == "Debian"
+      tags: [java, zookeeper]
 
     - name: stat /usr/lib/jvm/java-{{ java_version }}-openjdk-amd64
       stat:
         path: /usr/lib/jvm/java-{{ java_version }}-openjdk-amd64
       register: java_home_info
+      tags: [java, zookeeper]
 
     - name: set java_home
       set_fact:
         java_home: "{{ java_home_info.stat.islnk | ternary(java_home_info.stat.lnk_source, java_home_info.stat.path) }}"
+      tags: [java, zookeeper]
 
     - name: set default java alternative
       alternatives:
         name: java
         path: "{{ java_home }}/bin/java"
+      tags: [java, zookeeper]
   when: ansible_os_family == "Debian"

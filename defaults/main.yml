@@ -21,7 +21,7 @@ nifi_cluster_flow_election_wait_time: 120 secs
 nifi_cluster_flow_election_candidates: "{{ ansible_play_hosts | length }}"
 nifi_log_compression: gzip
 zookeeper_version: 3.5.7
-zookeeper_install: # set to 'yes' or 'local' to install ZooKeeper on the NiFi nodes, 'embedded' to use the embedded NiFi ZooKeeper server, and 'no' or 'none' if providing an externally managed ZooKeeper to use with NiFi
+zookeeper_install: # set to 'local' to install ZooKeeper on the NiFi nodes, 'embedded' to use the embedded NiFi ZooKeeper server, and 'none' if providing an externally managed ZooKeeper to use with NiFi
 zookeeper_install_prefix: /opt
 zookeeper_client_port: 2181
 zookeeper_server_ports: 2888:3888

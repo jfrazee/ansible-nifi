@@ -5,15 +5,7 @@ process_name=nifi
 user={{ nifi_run_as | default("root", true) }}
 directory={{ nifi_install_prefix }}/nifi
 startsecs=10
-{% if zookeeper_install|bool or zookeeper_install == "local" %}
-
-[program:zookeeper]
-command={{ zookeeper_install_prefix }}/zookeeper/bin/zkServer.sh start-foreground
-process_name=zookeeper
-user=root
-startsecs=10
-priority=900
-{% endif %}
+{% if zookeeper_install == "local" %}
 
 [group:nifi]
-programs=nifi{% if zookeeper_install|bool or zookeeper_install == "local" %},zookeeper{% endif %}
+programs=nifi{% if zookeeper_install == "local" %},zookeeper{% endif %}

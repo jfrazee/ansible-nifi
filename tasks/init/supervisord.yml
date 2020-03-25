@@ -7,6 +7,7 @@
         path: "{{ item }}"
         state: absent
       with_items: ["/etc/supervisord.conf", "/etc/supervisor.d"]
+      tags: [zookeeper]
 
     - name: create /etc/supervisor /etc/supervisor/conf.d /var/log/supervisor
       file:
@@ -14,12 +15,14 @@
         state: directory
         mode: 0755
       with_items: ["/etc/supervisor.d", "/etc/supervisor/conf.d", "/var/log/supervisor"]
+      tags: [zookeeper]
 
     - name: create /etc/supervisor/supervisord.conf
       template:
         src: files/supervisord.conf
         dest: /etc/supervisor/supervisord.conf
         mode: 0644
+      tags: [zookeeper]
 
     - name: create /etc/supervisor.d/nifi.conf
       template:
@@ -27,10 +30,19 @@
         dest: /etc/supervisor/conf.d/nifi.conf
         mode: 0644
 
+    - name: create /etc/supervisor.d/zookeeper.conf
+      template:
+        src: templates/zookeeper.conf.j2
+        dest: /etc/supervisor/conf.d/zookeeper.conf
+        mode: 0644
+      when: zookeeper_install == "local"
+      tags: [zookeeper]
+
     - name: check if supervisord is running
       pids:
         name: supervisord
       register: supervisor_process_info
+      tags: [zookeeper]
 
     - name: start supervisord
       block:
@@ -42,7 +54,9 @@
         - name: start supervisord
           shell: /usr/bin/supervisord -c /etc/supervisor/supervisord.conf
       when: supervisor_process_info.pids|length <= 0
+      tags: [zookeeper]
 
     - name: supervisorctl update all
       shell: /usr/bin/supervisorctl update all
-  when: ansible_virtualization_type == "docker"
+      tags: [zookeeper]
+  when: ansible_service_mgr == "supervisord" or ansible_virtualization_type == "docker" or init_system == "supervisord"

@@ -21,7 +21,7 @@ Vagrant.configure("2") do |config|
   end
 
   # Add option to dump environment with `vagrant --dump-vars`
-  opts = GetoptLong.new([ '--dump-vars', GetoptLong::OPTIONAL_ARGUMENT])
+  opts = GetoptLong.new(['--dump-vars', GetoptLong::OPTIONAL_ARGUMENT])
   opts.ordering=(GetoptLong::REQUIRE_ORDER)
   opts.each do |opt, arg|
     case opt
@@ -63,11 +63,20 @@ Vagrant.configure("2") do |config|
         ansible.limit = "all"
         ansible.playbook = "tests/test.yml"
         ansible.become = true
-        ansible.raw_arguments = ["-e", "role_name=ansible-nifi"]
 
+        # Set the playbook and add any other extra arguments from .env.yml.
+        extra_raw_arguments = ["-e", "role_name=ansible-nifi"]
+        if !(ansible_extra_vars["extra_raw_arguments"] || []).empty?
+          extra_raw_arguments +=
+            ansible_extra_vars["extra_raw_arguments"].split(/\s+/)
+        end
+
+        ansible.raw_arguments = extra_raw_arguments.to_a
+
+        # Get playbook vars from .env.yml.
         if File.exist?(".env.yml") && !(ansible_extra_vars || {}).empty?
           ansible.extra_vars = ansible_extra_vars.reject { |k|
-            ["dockerfile", "image"].include?(k)
+            ["extra_raw_arguments", "dockerfile", "image"].include?(k)
           }
         end
       end if i == n - 1

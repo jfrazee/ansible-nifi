@@ -6,27 +6,32 @@
       dnf:
         name: 'dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm'
         state: present
+      tags: [always]
 
     - name: install base dependencies
       dnf:
         name: ["iproute", "unzip", "python3"]
         state: present
+      tags: [always]
 
     - name: set default python alternative
       alternatives:
         link: /usr/bin/python
         name: python
         path: /usr/bin/python3
+      tags: [always]
 
     - name: set default pip alternative
       alternatives:
         link: /usr/bin/pip
         name: pip
         path: /usr/bin/pip3
+      tags: [always]
 
     - name: install supervisor
       dnf:
         name: supervisor
         state: present
       when: ansible_virtualization_type == "Docker"
+      tags: [always]
   when: ansible_os_family == "RedHat"
