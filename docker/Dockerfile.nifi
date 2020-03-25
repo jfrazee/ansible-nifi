@@ -1,4 +1,4 @@
-FROM apache/nifi:1.11.3
+FROM apache/nifi:1.11.4
 
 # Default user is nifi, so switch to root
 USER root

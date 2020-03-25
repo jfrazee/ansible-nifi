@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM ubuntu:19.04
 
 # Install the stuff we kinda sorta need
 RUN apt update
