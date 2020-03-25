@@ -4,13 +4,13 @@
   block:
     - name: add epel to /etc/yum.repos.d
       dnf:
-        name: 'dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm'
+        name: https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
         state: present
       tags: [always]
 
     - name: install base dependencies
       dnf:
-        name: ["iproute", "unzip", "python3"]
+        name: ["iproute", "unzip", "python3", "python3-psutil"]
         state: present
       tags: [always]
 
