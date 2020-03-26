@@ -77,20 +77,18 @@
 
     - name: disable TLSv1, TLSv1.1
       replace:
-        path: "{{ java_security_file }}"
+        path: "{{ java_security_file | realpath }}"
         regexp: '(?sm)^jdk\.tls\.disabledAlgorithms=(.*?)(?<!\\)\n'
         replace: 'jdk.tls.disabledAlgorithms=\1, {{ item }}\n'
-        backup: yes
       with_items: "{{ grep_result.results | selectattr('rc', 'equalto', 1) | map(attribute='item') | list }}"
       tags: [java, zookeeper]
   when: force_tls_v1_2 | default("yes", true) | bool
 
 - name: set java random source to /dev/urandom
   lineinfile:
-    dest: "{{ java_security_file }}"
+    dest: "{{ java_security_file | realpath }}"
     regexp: '^securerandom\.source=.*$'
     line: 'securerandom.source=file:/dev/urandom'
-    backup: yes
   tags: [java, zookeeper]
 
 - name: create /etc/profile.d/java.sh
@@ -117,21 +115,14 @@
     cacheable: yes
   tags: [zookeeper]
 
-- debug: msg={{ zookeeper_install }}
-
 - name: include ./zookeeper/{{ zookeeper_install }}.yml
   include_tasks: ./zookeeper/{{ zookeeper_install }}.yml
   when: nifi_cluster|bool or zookeeper_install == "local"
   tags: [zookeeper]
 
-- name: set init_system
-  set_fact:
-    init_system: "{{ (ansible_service_mgr == 'supervisord' or ansible_virtualization_type == 'docker') | ternary('supervisord', 'systemd') }}"
-    cacheable: yes
-  tags: [zookeeper]
-
-- name: include ./init/{{ init_system }}.yml
-  include_tasks: ./init/{{ init_system }}.yml
+# Just be opinionated until bringing systemd back in.
+- name: include ./init/supervisord.yml
+  include_tasks: ./init/supervisord.yml
   tags: [zookeeper]
 
 - name: check whether nifi started successfully

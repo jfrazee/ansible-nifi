@@ -23,9 +23,11 @@ nifi_log_compression: gzip
 zookeeper_version: 3.5.7
 zookeeper_install: # set to 'local' to install ZooKeeper on the NiFi nodes, 'embedded' to use the embedded NiFi ZooKeeper server, and 'none' if providing an externally managed ZooKeeper to use with NiFi
 zookeeper_install_prefix: /opt
+zookeeper_myid: # leave this empty to auto-assign
 zookeeper_client_port: 2181
 zookeeper_server_ports: 2888:3888
-zookeeper_connect_string: "{{ ansible_play_hosts | map('extract', hostvars, 'ansible_hostname') | list | join(':' + zookeeper_client_port|string + ',') }}:{{ zookeeper_client_port }}"
+zookeeper_hosts: "{{ ansible_play_hosts | map('extract', hostvars, 'ansible_hostname') | list }}"
+zookeeper_connect_string: "{{ zookeeper_hosts | join(':' + zookeeper_client_port|string + ',') }}:{{ zookeeper_client_port }}"
 zookeeper_admin_server_enabled: yes
 zookeeper_admin_server_port: 9099
 package_base_url: # leave this empty to fetch from Apache Archive or mirror

@@ -15,15 +15,9 @@
       when: ansible_os_family == "RedHat"
       tags: [java, zookeeper]
 
-    - name: stat /usr/lib/jvm/jre-{{ java_version }}
-      stat:
-        path: /usr/lib/jvm/jre-{{ java_version }}
-      register: java_home_info
-      tags: [java, zookeeper]
-
     - name: set java_home
       set_fact:
-        java_home: "{{ java_home_info.stat.islnk | ternary(java_home_info.stat.lnk_source, java_home_info.stat.path) }}"
+        java_home: "{{ '/usr/lib/jvm/jre-{{ java_version }}' | realpath }}"
       tags: [java, zookeeper]
 
     - name: set default java alternative

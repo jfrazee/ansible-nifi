@@ -14,15 +14,9 @@
       when: ansible_os_family == "Debian"
       tags: [java, zookeeper]
 
-    - name: stat /usr/lib/jvm/java-{{ java_version }}-openjdk-amd64
-      stat:
-        path: /usr/lib/jvm/java-{{ java_version }}-openjdk-amd64
-      register: java_home_info
-      tags: [java, zookeeper]
-
     - name: set java_home
       set_fact:
-        java_home: "{{ java_home_info.stat.islnk | ternary(java_home_info.stat.lnk_source, java_home_info.stat.path) }}"
+        java_home: "{{ '/usr/lib/jvm/java-{{ java_version }}-openjdk-amd64' | realpath }}"
       tags: [java, zookeeper]
 
     - name: set default java alternative

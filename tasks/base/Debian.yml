@@ -21,4 +21,27 @@
         state: present
       when: ansible_virtualization_type == "Docker"
       tags: [always]
+
+    - name: set package_facts
+      package_facts:
+        manager: auto
+      tags: [always]
+
+    - name: set supervisor_version
+      set_fact:
+        supervisor_version: "{{ packages.supervisor[0].version }}"
+        cacheable: yes
+      tags: [always]
+
+    - debug: msg="{{ supervisor_version }}"
+      tags: [always]
+
+    - name: use python 2 (supervisor < 3.5.x)
+      lineinfile:
+        dest: "{{ item }}"
+        regexp: '^#!\/usr\/bin\/python'
+        line: '#!/usr/bin/python2'
+      with_items: ["/usr/bin/supervisord", "/usr/bin/supervisorctl"]
+      when: supervisor_version is version("3.5.0", "<")
+      tags: [always]
   when: ansible_os_family == "Debian"

@@ -20,9 +20,9 @@
         owner: "{{ nifi_run_as }}"
         group: "{{ nifi_run_as }}"
         mode: 0755
-    - name: set zookeeper id in ./state/zookeeper/myid
+    - name: set zookeeper myid in ./state/zookeeper/myid
       copy:
-        content: "{{ ansible_play_hosts.index(inventory_hostname) + 1 }}"
+        content: "{{ zookeeper_hosts.index(ansible_hostname) + 1 }}"
         dest: "{{ nifi_home }}/state/zookeeper/myid"
         mode: 0644
         owner: "{{ nifi_run_as }}"
