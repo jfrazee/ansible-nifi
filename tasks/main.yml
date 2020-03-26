@@ -80,7 +80,6 @@
         path: "{{ java_security_file }}"
         regexp: '(?sm)^jdk\.tls\.disabledAlgorithms=(.*?)(?<!\\)\n'
         replace: 'jdk.tls.disabledAlgorithms=\1, {{ item }}\n'
-        backup: yes
       with_items: "{{ grep_result.results | selectattr('rc', 'equalto', 1) | map(attribute='item') | list }}"
       tags: [java, zookeeper]
   when: force_tls_v1_2 | default("yes", true) | bool

@@ -57,9 +57,9 @@
         state: directory
       tags: [zookeeper]
 
-    - name: set zookeeper id
+    - name: create zookeeper myid
       copy:
-        content: "{{ ansible_play_hosts.index(inventory_hostname) + 1 }}"
+        content: "{{ zookeeper_myid | default(zookeeper_hosts.index(ansible_hostname) + 1, true) }}"
         dest: "{{ zookeeper_install_prefix }}/zookeeper-{{ zookeeper_version }}/data/myid"
         mode: 0644
       tags: [zookeeper]
