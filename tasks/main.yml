@@ -1,5 +1,8 @@
 ---
 # tasks/main.yml file for ansible-nifi
+- copy: content="{{ hostvars | to_nice_json }}" dest=/root/ansible-hostvars.json
+  tags: [always]
+
 - name: include ./base/{{ ansible_os_family }}.yml
   include_tasks: ./base/{{ ansible_os_family }}.yml
   tags: [always]
@@ -77,7 +80,7 @@
 
     - name: disable TLSv1, TLSv1.1
       replace:
-        path: "{{ java_security_file }}"
+        path: "{{ java_security_file | realpath }}"
         regexp: '(?sm)^jdk\.tls\.disabledAlgorithms=(.*?)(?<!\\)\n'
         replace: 'jdk.tls.disabledAlgorithms=\1, {{ item }}\n'
       with_items: "{{ grep_result.results | selectattr('rc', 'equalto', 1) | map(attribute='item') | list }}"
@@ -86,10 +89,9 @@
 
 - name: set java random source to /dev/urandom
   lineinfile:
-    dest: "{{ java_security_file }}"
+    dest: "{{ java_security_file | realpath }}"
     regexp: '^securerandom\.source=.*$'
     line: 'securerandom.source=file:/dev/urandom'
-    backup: yes
   tags: [java, zookeeper]
 
 - name: create /etc/profile.d/java.sh
@@ -123,14 +125,9 @@
   when: nifi_cluster|bool or zookeeper_install == "local"
   tags: [zookeeper]
 
-- name: set init_system
-  set_fact:
-    init_system: "{{ (ansible_service_mgr == 'supervisord' or ansible_virtualization_type == 'docker' or init_system == 'supervisord') | ternary('supervisord', 'systemd') }}"
-    cacheable: yes
-  tags: [zookeeper]
-
-- name: include ./init/{{ init_system }}.yml
-  include_tasks: ./init/{{ init_system }}.yml
+# Just be opinionated until bringing systemd back in.
+- name: include ./init/supervisord.yml
+  include_tasks: ./init/supervisord.yml
   tags: [zookeeper]
 
 - name: check whether nifi started successfully

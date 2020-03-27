@@ -59,4 +59,4 @@
     - name: supervisorctl update all
       shell: /usr/bin/supervisorctl update all
       tags: [zookeeper]
-  when: ansible_service_mgr == "supervisord" or ansible_virtualization_type == "docker" or init_system == "supervisord"
+  # when: ansible_service_mgr == "supervisord" or ansible_virtualization_type == "docker" or init_system == "supervisord"
