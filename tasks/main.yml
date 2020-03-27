@@ -125,7 +125,7 @@
 
 - name: set init_system
   set_fact:
-    init_system: "{{ (ansible_service_mgr == 'supervisord' or ansible_virtualization_type == 'docker') | ternary('supervisord', 'systemd') }}"
+    init_system: "{{ (ansible_service_mgr == 'supervisord' or ansible_virtualization_type == 'docker' or init_system == 'supervisord') | ternary('supervisord', 'systemd') }}"
     cacheable: yes
   tags: [zookeeper]
 
