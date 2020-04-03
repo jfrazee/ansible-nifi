@@ -44,6 +44,7 @@
       register: supervisor_process_info
       tags: [zookeeper]
 
+    # TODO: This fails on non-Docker Ubuntu because it starts with systemd
     - name: start supervisord
       block:
         - name: set nodaemon=false in /etc/supervisor/supervisord.conf

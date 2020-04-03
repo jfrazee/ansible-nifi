@@ -4,7 +4,7 @@
   block:
     - name: get closest apache mirror for zookeeper
       uri:
-        url: "{{ apache_mirror_info_url }}/zookeeper/{{ zookeeper_version }}?as_json"
+        url: "{{ apache_mirror_info_url }}/zookeeper/zookeeper-{{ zookeeper_version }}?as_json"
         return_content: yes
       register: zookeeper_mirror_info
       until: zookeeper_mirror_info.status == 200
