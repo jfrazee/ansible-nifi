@@ -16,7 +16,7 @@
 
     - name: set java_home
       set_fact:
-        java_home: "{{ '/usr/lib/jvm/java-{{ java_version }}-openjdk' | realpath }}"
+        java_home: /usr/lib/jvm/java-{{ java_version }}-openjdk
       tags: [java, zookeeper]
 
     - name: set default java alternative

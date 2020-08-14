@@ -9,5 +9,6 @@ tmp/
 *.p12
 *.pem
 *.pkcs12
+*.cer
 files/*.zip
 files/*.tar.gz
