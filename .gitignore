@@ -5,5 +5,9 @@
 tmp/
 *.retry
 *.log
+*.jks
+*.p12
+*.pem
+*.pkcs12
 files/*.zip
 files/*.tar.gz

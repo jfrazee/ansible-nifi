@@ -1,29 +1,31 @@
-FROM alpine:3.11.5
+FROM alpine:latest
 
 # Install the stuff we kinda sorta need
-RUN apk update
-RUN apk add bash tar grep gzip unzip python3 py3-psutil sudo supervisor \
-            openssh-server openssh-sftp-server openjdk8-jre-base \
-            openjdk11-jre-headless
-RUN mkdir /etc/security /etc/supervisor.d
+RUN set -eux; \
+    apk update; \
+    apk add --no-cache tar grep gzip unzip sudo python3 py3-psutil supervisor \
+                       dropbear openssh-sftp-server
+RUN set -eux; \
+    rm -rf /etc/supervisor.d; \
+    mkdir -p /etc/supervisor /etc/supervisor/conf.d /var/log/supervisor /etc/dropbear /etc/security; \
+    mv /etc/supervisord.conf /etc/supervisor
 
-# Add the vagrant user
-RUN adduser -D -s /bin/ash vagrant && passwd -u vagrant
-RUN mkdir -p ~vagrant/.ssh && chmod 700 ~vagrant/.ssh
-RUN wget -O ~vagrant/.ssh/authorized_keys https://raw.githubusercontent.com/hashicorp/vagrant/master/keys/vagrant.pub \
-    && chmod 600 ~vagrant/.ssh/authorized_keys
-RUN chown -R vagrant:vagrant ~vagrant/.ssh
+# Add the vagrant user and make things nice and insecure ;)
+RUN set -eux; \
+    adduser -D -s /bin/ash vagrant; \
+    passwd -u vagrant; \
+    mkdir -p ~vagrant/.ssh; \
+    chmod 700 ~vagrant/.ssh; \
+    wget -O ~vagrant/.ssh/authorized_keys https://raw.githubusercontent.com/hashicorp/vagrant/master/keys/vagrant.pub; \
+    chmod 600 ~vagrant/.ssh/authorized_keys; \
+    chown -R vagrant:vagrant ~vagrant/.ssh; \
+    echo "vagrant ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/vagrant; \
+    echo "Set disable_coredump false" > /etc/sudo.conf
 
-# Make things nice and insecure ;)
-RUN echo "vagrant ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/vagrant
-RUN echo "Set disable_coredump false" > /etc/sudo.conf
-
-# Setup supervisord, with ssh
-RUN mkdir -p /etc/supervisor /etc/supervisor/conf.d /var/log/supervisor
-RUN rm -rf /etc/supervisord.conf /etc/supervisor.d
+# Setup supervisord, with dropbear
 COPY ./files/supervisord.conf /etc/supervisor/supervisord.conf
-COPY ./files/sshd.conf /etc/supervisor/conf.d/sshd.conf
+COPY ./files/dropbear.conf /etc/supervisor/conf.d/sshd.conf
 
 # Start supervisord
-EXPOSE 22 8080 9443 2181 2281
+EXPOSE 22 8080 8443 9443 10443 11443 6342
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]

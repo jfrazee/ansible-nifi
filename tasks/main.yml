@@ -77,7 +77,7 @@
 
     - name: disable TLSv1, TLSv1.1
       replace:
-        path: "{{ java_security_file | realpath }}"
+        path: "{{ java_security_file }}"
         regexp: '(?sm)^jdk\.tls\.disabledAlgorithms=(.*?)(?<!\\)\n'
         replace: 'jdk.tls.disabledAlgorithms=\1, {{ item }}\n'
       with_items: "{{ grep_result.results | selectattr('rc', 'equalto', 1) | map(attribute='item') | list }}"

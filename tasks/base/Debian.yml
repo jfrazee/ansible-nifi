@@ -1,10 +1,10 @@
 ---
-# tasks/main/RedHat.yml file for ansible-nifi
+# tasks/main/Debian.yml file for ansible-nifi
 - name: install dependencies and do basic setup (debian)
   block:
     - name: install base dependencies
       apt:
-        name: ["iproute2", "unzip", "python3", "python3-apt", "python3-psutil"]
+        name: ["iproute2", "unzip", "procps", "python3", "python3-pip", "python3-apt", "python3-psutil", "software-properties-common"]
         state: present
       tags: [always]
 
@@ -31,9 +31,6 @@
       set_fact:
         supervisor_version: "{{ packages.supervisor[0].version }}"
         cacheable: yes
-      tags: [always]
-
-    - debug: msg="{{ supervisor_version }}"
       tags: [always]
 
     - name: use python 2 (supervisor < 3.5.x)

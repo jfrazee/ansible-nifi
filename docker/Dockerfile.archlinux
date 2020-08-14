@@ -1,22 +1,15 @@
-FROM centos:8
+FROM archlinux:latest
 
-# Install some normal stuff, yo
+# Install the stuff we kinda sorta need
 RUN set -eux; \
-    dnf install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm; \
-    dnf install -y iproute unzip sudo python3 python3-psutil supervisor openssh-server; \
-    dnf clean all; \
-    rm -rf /var/cache/yum
+    pacman -Sy --noconfirm iproute2 unzip sudo python python-pip python-psutil \
+                           openssh supervisor; \
+    pacman -Scc --noconfirm; \
+    rm -rf /var/cache/pacman/pkg/*
 RUN set -eux; \
-    update-alternatives --set python /usr/bin/python3; \
-    update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 300; \
-    sed -i -E "s/^#?(account\s+required\s+pam_nologin\.so)$/#\1/g" /etc/pam.d/sshd; \
     rm -rf /etc/supervisor.d; \
     mkdir -p /etc/supervisor /etc/supervisor/conf.d /var/log/supervisor; \
     mv /etc/supervisord.conf /etc/supervisor
-
-# Setup supervisord, with ssh
-COPY ./files/supervisord.conf /etc/supervisor/supervisord.conf
-COPY ./files/sshd.conf /etc/supervisor/conf.d/sshd.conf
 
 # Add the vagrant user and make things nice and insecure ;)
 RUN set -eux; \
@@ -27,6 +20,10 @@ RUN set -eux; \
     chmod 600 ~vagrant/.ssh/authorized_keys; \
     chown -R vagrant:vagrant ~vagrant/.ssh; \
     echo "vagrant ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/vagrant
+
+# Setup supervisord, with ssh
+COPY ./files/supervisord.conf /etc/supervisor/supervisord.conf
+COPY ./files/sshd.conf /etc/supervisor/conf.d/sshd.conf
 
 # Start supervisord
 EXPOSE 22 8080 8443 9443 10443 11443 6342

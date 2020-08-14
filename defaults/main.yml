@@ -7,7 +7,7 @@ net_ipv4_ip_local_port_range: 10000 65000
 vm_swapiness: 0
 create_etc_hosts: yes
 force_tls_v1_2: yes
-nifi_version: 1.11.3
+nifi_version: 1.11.4
 nifi_run_as: nifi
 nifi_install_prefix: /opt
 nifi_java_use_g1gc: yes

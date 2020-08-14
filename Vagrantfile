@@ -1,9 +1,7 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-require 'json'
 require 'yaml'
-require 'getoptlong'
 
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
 # configures the configuration version (we support older styles for
@@ -14,28 +12,14 @@ Vagrant.configure("2") do |config|
   config.env.enable
 
   # Load .env.yml, maybe it's a cluster, maybe it's Maybelline.
-  ansible_extra_vars, cluster = {}, false
-  if File.exist?(".env.yml")
-    ansible_extra_vars = YAML.load(open(".env.yml")).to_h
-    cluster = ansible_extra_vars.fetch("nifi_cluster", false)
+  env_yml, ansible_extra_vars = File.expand_path(".env.yml", __dir__), {}
+  if File.exist?(env_yml)
+    ansible_extra_vars = YAML.load(open(env_yml)).to_h
   end
 
-  # Add option to dump environment with `vagrant --dump-vars`
-  opts = GetoptLong.new(['--dump-vars', GetoptLong::OPTIONAL_ARGUMENT])
-  opts.ordering=(GetoptLong::REQUIRE_ORDER)
-  opts.each do |opt, arg|
-    case opt
-    when '--dump-vars'
-      puts JSON.pretty_generate({
-        ENV: ENV.to_h,
-        ansible_extra_vars: ansible_extra_vars
-      })
-      exit 1
-    end
-  end
-
-  (0...(n = cluster ? 3 : 1)).each do |i|
-    hostname = "vagrant#{n > 1 ? (i + 1) : ''}"
+  n = ansible_extra_vars.fetch("nifi_cluster", false) ? 3 : 1
+  (0...n).each do |i|
+    hostname = n > 1 ? "vagrant#{i+1}" : "vagrant"
     config.vm.define hostname, primary: (i == 0) do |host|
       host.vm.provider "docker" do |docker|
         # Build the image from the given Dockerfile in the current directory.
@@ -55,8 +39,8 @@ Vagrant.configure("2") do |config|
         docker.has_ssh = true
         docker.remains_running = true
 
-        # Expose nifi and zookeeper on the containers.
-        docker.ports = ["#{9990+i}:8080", "#{9443+i}:9443", "#{2181+i}:2181", "#{2281+i}:2281"]
+        # Expose NiFi and ZooKeeper ports on the containers.
+        docker.ports = [8080, 8443, 9443, 10443, 11443, 6342, 2181, 2281].map { |p| "#{p+i}:#{p}" }.to_a
       end
 
       host.vm.provision "ansible" do |ansible|
@@ -74,7 +58,7 @@ Vagrant.configure("2") do |config|
         ansible.raw_arguments = extra_raw_arguments.to_a
 
         # Get playbook vars from .env.yml.
-        if File.exist?(".env.yml") && !(ansible_extra_vars || {}).empty?
+        if File.exist?(env_yml) && !(ansible_extra_vars || {}).empty?
           ansible.extra_vars = ansible_extra_vars.reject { |k|
             ["extra_raw_arguments", "dockerfile", "image"].include?(k)
           }
