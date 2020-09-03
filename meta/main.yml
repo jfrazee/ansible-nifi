@@ -1,4 +1,7 @@
-dependencies: []
+dependencies:
+  - src: git+https://jfrazee/ansible-java
+    version: development
+    name: ansible-java
 
 galaxy_info:
   author: Joey Frazee

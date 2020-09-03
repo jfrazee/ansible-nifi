@@ -54,50 +54,6 @@
     line: vm.swapiness={{ vm_swapiness }}
   tags: [always]
 
-- name: include ./java/{{ ansible_os_family }}.yml
-  include_tasks: ./java/{{ ansible_os_family }}.yml
-  tags: [java, zookeeper]
-
-# See https://www.java.com/en/configure_crypto.html
-- name: force TLSv1.2 with java
-  block:
-    - name: set java_security_file
-      set_fact:
-        java_security_file: "{{ java_home }}/{{ (java_version|string == '1.8' or java_version|string == '1.8.0' or java_version|string == '8') | ternary('jre/lib/security/java.security', 'conf/security/java.security') }}"
-        cacheable: yes
-      tags: [java, zookeeper]
-
-    - name: check for TLSv1, TLSv1.1 in java.security file
-      shell: grep -Pzo '(?sm)^jdk\.tls\.disabledAlgorithms=.*?(?<!\\)\n' {{ java_security_file }} | grep -Pz '\b{{ item | regex_escape }}(\s*,\s*|\Z)'
-      register: grep_result
-      with_items: ["TLSv1", "TLSv1.1"]
-      failed_when: grep_result.rc > 1 or grep_result.stderr|length > 0
-      changed_when: grep_result.rc == 1
-      tags: [java, zookeeper]
-
-    - name: disable TLSv1, TLSv1.1
-      replace:
-        path: "{{ java_security_file }}"
-        regexp: '(?sm)^jdk\.tls\.disabledAlgorithms=(.*?)(?<!\\)\n'
-        replace: 'jdk.tls.disabledAlgorithms=\1, {{ item }}\n'
-      with_items: "{{ grep_result.results | selectattr('rc', 'equalto', 1) | map(attribute='item') | list }}"
-      tags: [java, zookeeper]
-  when: force_tls_v1_2 | default("yes", true) | bool
-
-- name: set java random source to /dev/urandom
-  lineinfile:
-    dest: "{{ java_security_file | realpath }}"
-    regexp: '^securerandom\.source=.*$'
-    line: 'securerandom.source=file:/dev/urandom'
-  tags: [java, zookeeper]
-
-- name: create /etc/profile.d/java.sh
-  template:
-    src: templates/java.sh.j2
-    dest: /etc/profile.d/java.sh
-    mode: 0644
-  tags: [java, zookeeper]
-
 - name: include ./nifi/common.yml
   include_tasks: ./nifi/common.yml
 
